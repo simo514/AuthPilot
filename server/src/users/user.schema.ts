@@ -1,38 +1,113 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 import { randomUUID } from 'crypto';
 import { UserRole } from './enums/user-role.enum';
 import { UserDepartment } from './enums/user-department.enum';
+import { UserStatus } from './enums/user-status.enum';
+
 
 export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ default: () => randomUUID(), unique: true })
+  @Prop({
+    default: () => randomUUID(),
+    unique: true,
+    index: true,
+  })
   uuid: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    index: true,
+    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  })
   email: string;
 
-  @Prop({ required: true })
+  @Prop({
+    required: true,
+    select: false, // Exclude password from queries by default
+    minlength: 6,
+  })
   password: string;
 
-  @Prop({ required: true })
+  @Prop({
+    required: true,
+    trim: true,
+    minlength: 2,
+    maxlength: 100,
+  })
   fullName: string;
 
-  @Prop({ enum: Object.values(UserRole), default: UserRole.USER }) 
-  role: UserRole; 
-
-  @Prop({ 
-    type: String,
-    enum: [...Object.values(UserDepartment), null], 
-    default: null,
-    required: false
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Role',
+    required: false,
   })
-  department: UserDepartment | null; 
+  roleId: MongooseSchema.Types.ObjectId;
 
-  @Prop({ default: 'active' })
-  status: string; 
+  @Prop({
+    type: String,
+    enum: Object.values(UserRole),
+    default: UserRole.USER,
+    index: true,
+  })
+  role: UserRole;
+
+  @Prop({
+    type: String,
+    enum: [...Object.values(UserDepartment), null],
+    default: null,
+    required: false,
+  })
+  department: UserDepartment | null;
+
+  @Prop({
+    type: String,
+    enum: Object.values(UserStatus),
+    default: UserStatus.ACTIVE,
+    index: true,
+  })
+  status: UserStatus;
+
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  lastLoginAt: Date;
+
+  @Prop({
+    type: String,
+    default: null,
+  })
+  refreshToken: string;
+
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  emailVerifiedAt: Date;
+
+  @Prop({
+    type: String,
+    default: null,
+  })
+  resetPasswordToken: string;
+
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  resetPasswordExpires: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+// Compound indexes for common queries
+UserSchema.index({ status: 1, role: 1 }); // Filter active users by role
+UserSchema.index({ department: 1, status: 1 }); // Filter users by department
+UserSchema.index({ createdAt: -1 }); // Sort by registration date
+UserSchema.index({ lastLoginAt: -1 }); // Sort by activity

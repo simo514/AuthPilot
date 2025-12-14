@@ -16,7 +16,6 @@ export class UsersController {
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
     async createUser(@Body() createUserDto: CreateUserDto): Promise<{ message: string }> {
-        this.logger.log(`POST /users - Creating new user`);
         await this.usersService.createUser(createUserDto);
         return { message: 'User created successfully' };
     }

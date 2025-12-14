@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import Joi from 'joi';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
+import { RolesModule } from './roles/roles.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
    imports: [
@@ -16,6 +18,8 @@ import { UsersModule } from './users/users.module';
     }),
     MongooseModule.forRoot(process.env.DB_CONNECTION),
     UsersModule,
+    RolesModule,
+    AuthModule,
   ],
   controllers: [],
   providers: [],
