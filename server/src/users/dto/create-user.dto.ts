@@ -1,6 +1,4 @@
-import { IsNotEmpty, IsString, IsEmail, IsEnum, IsOptional } from 'class-validator';
-import { Transform } from 'class-transformer';
-import { UserRole } from '../enums/user-role.enum';
+import { IsNotEmpty, IsString, IsEmail, IsEnum, IsOptional, IsMongoId } from 'class-validator';
 import { UserDepartment } from '../enums/user-department.enum';
 
 export class CreateUserDto {
@@ -17,10 +15,9 @@ export class CreateUserDto {
     @IsNotEmpty()
     password: string;
 
-    @IsOptional()
-    @Transform(({ value }) => value?.toLowerCase())
-    @IsEnum(UserRole)
-    role?: UserRole;
+    @IsMongoId()
+    @IsNotEmpty()
+    roleId: string;
 
     @IsOptional()
     @IsEnum(UserDepartment)

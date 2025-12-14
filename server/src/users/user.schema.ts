@@ -45,7 +45,7 @@ export class User {
   @Prop({
     type: MongooseSchema.Types.ObjectId,
     ref: 'Role',
-    required: false,
+    required: true,
   })
   roleId: MongooseSchema.Types.ObjectId;
 

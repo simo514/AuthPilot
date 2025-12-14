@@ -5,6 +5,7 @@ import { User, UserDocument } from './user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Role, RoleDocument } from '../roles/role.schema';
 
 @Injectable()
 export class UsersService {
@@ -12,17 +13,31 @@ export class UsersService {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
   ) {}
 
   async createUser(createUserDto: CreateUserDto): Promise<void> {
-    const {fullName, email, password, role, department} = createUserDto;
-    this.logger.log(`Creating user with email: ${email}, role: ${role}, department: ${department}`);
+    const {fullName, email, password, roleId, department} = createUserDto;
+    
+    // Validate roleId exists
+    const roleDoc = await this.roleModel.findById(roleId).exec();
+    if (!roleDoc) {
+      throw new BadRequestException('Invalid roleId: Role does not exist');
+    }
+
+    if (!roleDoc.isActive) {
+      throw new BadRequestException('Cannot assign inactive role to user');
+    }
+    
+    // Map role name to UserRole enum (convert to lowercase to match enum)
+    const roleName = roleDoc.name.toLowerCase();
     
     const createdUser = new this.userModel({
       email,
       fullName,
       password: await bcrypt.hash(password, 10),
-      ...(role && { role }),
+      roleId,
+      role: roleName,
       ...(department && { department }),
     });
     try {
@@ -46,10 +61,24 @@ export class UsersService {
       delete dataToUpdate.password;
     }
 
+    // Validate roleId if provided and sync role field
+    if (updateData.roleId) {
+      const roleDoc = await this.roleModel.findById(updateData.roleId).exec();
+      if (!roleDoc) {
+        throw new BadRequestException('Invalid roleId: Role does not exist');
+      }
+      if (!roleDoc.isActive) {
+        throw new BadRequestException('Cannot assign inactive role to user');
+      }
+      // Automatically update role field based on roleId
+      dataToUpdate.role = roleDoc.name.toLowerCase();
+    }
+
     try {
       const updated = await this.userModel
         .findOneAndUpdate({ uuid }, dataToUpdate, { new: true, runValidators: true })
-        .select('-password') 
+        .select('-password')
+        .populate('roleId', 'name permissions isActive level')
         .lean()
         .exec();
 
@@ -85,7 +114,12 @@ export class UsersService {
     }
     
     try {
-      const users = await this.userModel.find(filter).select('-password').lean().exec();
+      const users = await this.userModel
+        .find(filter)
+        .select('-password')
+        .populate('roleId', 'name permissions isActive level')
+        .lean()
+        .exec();
       return users;
     } catch (error) {
       this.logger.error('Failed to fetch users', error.stack);
@@ -99,6 +133,7 @@ export class UsersService {
       const user = await this.userModel
         .findOne({ uuid })
         .select('-password')
+        .populate('roleId', 'name permissions isActive level')
         .lean()
         .exec();
       
@@ -163,6 +198,31 @@ export class UsersService {
         .exec();
     } catch (error) {
       this.logger.error(`Failed to update last login: ${uuid}`, error.stack);
+    }
+  }
+
+  async updateRefreshToken(uuid: string, refreshToken: string): Promise<void> {
+    try {
+      await this.userModel
+        .findOneAndUpdate(
+          { uuid },
+          { refreshToken },
+          { new: true }
+        )
+        .exec();
+    } catch (error) {
+      this.logger.error(`Failed to update refresh token: ${uuid}`, error.stack);
+    }
+  }
+
+  async findByRefreshToken(refreshToken: string): Promise<UserDocument | null> {
+    try {
+      return await this.userModel
+        .findOne({ refreshToken })
+        .exec();
+    } catch (error) {
+      this.logger.error('Failed to find user by refresh token', error.stack);
+      throw new InternalServerErrorException('Failed to find user');
     }
   }
 

@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEmail, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsEnum, IsMongoId } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { UserRole } from '../enums/user-role.enum';
 import { UserDepartment } from '../enums/user-department.enum';
@@ -13,13 +13,12 @@ export class UpdateUserDto {
 	email?: string;
 
 	@IsOptional()
-	@IsEnum(UserDepartment)
-	department?: UserDepartment;
+	@IsMongoId()
+	roleId?: string;
 
 	@IsOptional()
-	@Transform(({ value }) => value?.toLowerCase())
-	@IsEnum(UserRole)
-	role?: UserRole;
+	@IsEnum(UserDepartment)
+	department?: UserDepartment;
 
 	@IsOptional()
 	@IsString()
