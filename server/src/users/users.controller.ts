@@ -2,9 +2,8 @@ import { Body, Controller, Patch, Post, UsePipes, ValidationPipe, Param, NotFoun
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './user.schema';
-import { UserRole } from './enums/user-role.enum';
-import { UserDepartment } from './enums/user-department.enum';
+import { UserResponseDto } from './dto/user-response.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Controller('users')
 export class UsersController {
@@ -25,34 +24,35 @@ export class UsersController {
     async updateUser(
         @Param('uuid') uuid: string,
         @Body() updateUserDto: UpdateUserDto,
-    ): Promise<Omit<User, 'password'>> {
+    ): Promise<UserResponseDto> {
         this.logger.log(`PATCH /users/${uuid} - Updating user`);
         const updated = await this.usersService.updateUser(uuid, updateUserDto);
         if (!updated) {
             this.logger.warn(`User not found: ${uuid}`);
             throw new NotFoundException('User not found');
         }
-        return updated;
+        return plainToInstance(UserResponseDto, updated, { excludeExtraneousValues: true });
     }
 
     @Get()
     async getAllUsers(
         @Query('department') department?: string,
         @Query('role') role?: string,
-    ): Promise<Omit<User, 'password'>[]> {
+    ): Promise<UserResponseDto[]> {
         this.logger.log(`GET /users - Fetching users with filters`);
-        return this.usersService.getAllUsers(department, role);
+        const users = await this.usersService.getAllUsers(department, role);
+        return plainToInstance(UserResponseDto, users, { excludeExtraneousValues: true });
     }
 
     @Get(':uuid')
-    async getUserById(@Param('uuid') uuid: string): Promise<Omit<User, 'password'>> {
+    async getUserById(@Param('uuid') uuid: string): Promise<UserResponseDto> {
         this.logger.log(`GET /users/${uuid} - Fetching user`);
         const user = await this.usersService.getUserById(uuid);
         if (!user) {
             this.logger.warn(`User not found: ${uuid}`);
             throw new NotFoundException('User not found');
         }
-        return user;
+        return plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true });
     }
 
     @Delete(':uuid')

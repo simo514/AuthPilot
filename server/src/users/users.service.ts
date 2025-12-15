@@ -133,7 +133,7 @@ export class UsersService {
       const user = await this.userModel
         .findOne({ uuid })
         .select('-password')
-        .populate('roleId', 'name permissions isActive level')
+        .populate('roleId', 'name permissions isActive level -_id')
         .lean()
         .exec();
       

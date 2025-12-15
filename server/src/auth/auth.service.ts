@@ -1,24 +1,19 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { User, UserDocument } from '../users/user.schema';
-import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { plainToInstance } from 'class-transformer';
+import { LoginResponseDto, RefreshResponseDto } from './dto/auth-response.dto';
 
 @Injectable()
 export class AuthService {
     private logger = new Logger(AuthService.name);
     constructor(
-        private readonly userModel: Model<UserDocument>,
         private readonly jwtService: JwtService,
         private readonly usersService: UsersService,
     ) {}
 
-    async login(email: string, password: string): Promise<{ 
-        accessToken: string; 
-        refreshToken: string; 
-        user: Omit<User, 'password'> 
-    }> {
+
+    async login(email: string, password: string): Promise<LoginResponseDto> {
         // Find user by email with password
         const user = await this.usersService.findByEmailWithPassword(email);
         if (!user) {
@@ -56,17 +51,15 @@ export class AuthService {
 
         this.logger.log(`User logged in successfully: ${email}`);
         
-        return { 
-            accessToken, 
+        // Transform to DTO to remove sensitive fields
+        return plainToInstance(LoginResponseDto, {
+            accessToken,
             refreshToken,
-            user: userData 
-        };
+            user: userData
+        }, { excludeExtraneousValues: true });
     }
 
-    async refreshToken(refreshToken: string): Promise<{ 
-        accessToken: string; 
-        refreshToken: string 
-    }> {
+    async refreshToken(refreshToken: string): Promise<RefreshResponseDto> {
         try {
             // Verify the refresh token
             const decoded = this.jwtService.verify(refreshToken);
@@ -92,10 +85,11 @@ export class AuthService {
 
             this.logger.log(`Tokens refreshed for user: ${user.email}`);
             
-            return { 
-                accessToken: newAccessToken, 
-                refreshToken: newRefreshToken 
-            };
+            // Transform to DTO
+            return plainToInstance(RefreshResponseDto, {
+                accessToken: newAccessToken,
+                refreshToken: newRefreshToken
+            }, { excludeExtraneousValues: true });
         } catch (error) {
             this.logger.warn('Invalid or expired refresh token');
             throw new UnauthorizedException('Invalid or expired refresh token');

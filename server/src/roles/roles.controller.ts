@@ -1,7 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UsePipes, ValidationPipe } from '@nestjs/common';
 import { RolesService } from './roles.service';
-import { Role } from './role.schema';
 import { CreateRoleDto } from './dto/create-role.dto';
+import { RoleResponseDto } from './dto/role-response.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Controller('roles')
 export class RolesController {
@@ -10,14 +11,16 @@ export class RolesController {
     @Post()
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
-    async createRole(@Body() createRoleDto: CreateRoleDto): Promise<Role> {
-        return this.rolesService.createRole(createRoleDto);
+    async createRole(@Body() createRoleDto: CreateRoleDto): Promise<RoleResponseDto> {
+        const role = await this.rolesService.createRole(createRoleDto);
+        return plainToInstance(RoleResponseDto, role, { excludeExtraneousValues: true });
     }
 
     @Get()
     @HttpCode(HttpStatus.OK)
-    async getRoles(): Promise<Role[]> {
-        return this.rolesService.getRoles();
+    async getRoles(): Promise<RoleResponseDto[]> {
+        const roles = await this.rolesService.getRoles();
+        return plainToInstance(RoleResponseDto, roles, { excludeExtraneousValues: true });
     }
 
     @Patch(':roleId/permissions')
@@ -26,8 +29,9 @@ export class RolesController {
     async updateRolePermissions(
         @Param('roleId') roleId: string,
         @Body('permissions') permissions: string[],
-    ): Promise<Role> {
-        return this.rolesService.updateRolePermissions(roleId, permissions);
+    ): Promise<RoleResponseDto> {
+        const role = await this.rolesService.updateRolePermissions(roleId, permissions);
+        return plainToInstance(RoleResponseDto, role, { excludeExtraneousValues: true });
     }
 
     @Patch(':roleId/toggle-status')
@@ -36,8 +40,9 @@ export class RolesController {
     async toggleRoleStatus(
         @Param('roleId') roleId: string,
         @Body('isActive') isActive: boolean,
-    ): Promise<Role> {
-        return this.rolesService.toggleRoleStatus(roleId, isActive);
+    ): Promise<RoleResponseDto> {
+        const role = await this.rolesService.toggleRoleStatus(roleId, isActive);
+        return plainToInstance(RoleResponseDto, role, { excludeExtraneousValues: true });
     }
 
     @Delete(':roleId')
