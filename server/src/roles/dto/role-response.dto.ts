@@ -1,6 +1,10 @@
-import { Exclude, Expose } from 'class-transformer';
+import { Exclude, Expose, Transform } from 'class-transformer';
 
 export class RoleResponseDto {
+    @Expose()
+    @Transform(({ obj }) => obj._id.toString())
+    id: string;
+
     @Expose()
     name: string;
 

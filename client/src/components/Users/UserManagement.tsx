@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth, User } from '../../contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { useAuthStore } from '../../store/useAuthStore';
+import { User as UserType } from '../../types/auth.types';
 import { Search, Filter, Plus, Edit2, Trash2, MoreVertical, UserPlus } from 'lucide-react';
 
+type User = UserType;
+
 export function UserManagement() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');

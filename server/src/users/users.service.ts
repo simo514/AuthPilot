@@ -19,24 +19,37 @@ export class UsersService {
   async createUser(createUserDto: CreateUserDto): Promise<void> {
     const {fullName, email, password, roleId, department} = createUserDto;
     
-    // Validate roleId exists
-    const roleDoc = await this.roleModel.findById(roleId).exec();
-    if (!roleDoc) {
-      throw new BadRequestException('Invalid roleId: Role does not exist');
-    }
+    let finalRoleId = roleId;
+    let roleName = 'user';
 
-    if (!roleDoc.isActive) {
-      throw new BadRequestException('Cannot assign inactive role to user');
+    // If no roleId provided, find the default 'user' role
+    if (!roleId) {
+      const defaultRole = await this.roleModel.findOne({ name: /^user$/i }).exec();
+      if (!defaultRole) {
+        throw new InternalServerErrorException('Default user role not found in database');
+      }
+      finalRoleId = defaultRole._id.toString();
+      roleName = defaultRole.name.toLowerCase();
+    } else {
+      // Validate roleId exists
+      const roleDoc = await this.roleModel.findById(roleId).exec();
+      if (!roleDoc) {
+        throw new BadRequestException('Invalid roleId: Role does not exist');
+      }
+
+      if (!roleDoc.isActive) {
+        throw new BadRequestException('Cannot assign inactive role to user');
+      }
+      
+      // Map role name to UserRole enum (convert to lowercase to match enum)
+      roleName = roleDoc.name.toLowerCase();
     }
-    
-    // Map role name to UserRole enum (convert to lowercase to match enum)
-    const roleName = roleDoc.name.toLowerCase();
     
     const createdUser = new this.userModel({
       email,
       fullName,
       password: await bcrypt.hash(password, 10),
-      roleId,
+      roleId: finalRoleId,
       role: roleName,
       ...(department && { department }),
     });

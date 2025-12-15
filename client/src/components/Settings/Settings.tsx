@@ -1,16 +1,21 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState } from 'react';
+import { useAuthStore } from '../../store/useAuthStore';
 import { Lock, Bell, User, Save, Eye, EyeOff } from 'lucide-react';
 
 export function Settings() {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuthStore();
+  
+  // TODO: Implement updateUser in store
+  const updateUser = (data: any) => {
+    console.log('Update user:', data);
+  };
   const [activeTab, setActiveTab] = useState('profile');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
+    fullName: user?.fullName || '',
     email: user?.email || '',
     department: user?.department || ''
   });

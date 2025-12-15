@@ -1,4 +1,3 @@
-import React from 'react';
 import { Users, Shield, Activity, TrendingUp } from 'lucide-react';
 
 export function AdminDashboard() {

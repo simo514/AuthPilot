@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState } from 'react';
+import { useAuthStore } from '../../store/useAuthStore';
 import { User, Mail, Calendar, Shield, Edit2, Save, X } from 'lucide-react';
 
 export function UserDashboard() {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuthStore();
+  
+  // TODO: Implement updateUser in store
+  const updateUser = (data: any) => {
+    console.log('Update user:', data);
+  };
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
-    name: user?.name || '',
+    fullName: user?.fullName || '',
     email: user?.email || ''
   });
 
@@ -17,7 +22,7 @@ export function UserDashboard() {
 
   const handleCancel = () => {
     setEditData({
-      name: user?.name || '',
+      fullName: user?.fullName || '',
       email: user?.email || ''
     });
     setIsEditing(false);
@@ -28,7 +33,7 @@ export function UserDashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Profile</h1>
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          Welcome back, {user?.name}!
+          Welcome back, {user?.fullName}!
         </div>
       </div>
 
@@ -53,19 +58,19 @@ export function UserDashboard() {
           <div className="flex items-center space-x-6 mb-6">
             <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
               <span className="text-white text-2xl font-bold">
-                {user?.name.split(' ').map(n => n[0]).join('')}
+                {user?.fullName?.split(' ').map(n => n[0]).join('') || 'U'}
               </span>
             </div>
             <div>
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {user?.name}
+                {user?.fullName}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {user?.role} • {user?.department || 'No Department'}
               </p>
               <div className="flex items-center space-x-2 mt-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Active</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{user?.status}</span>
               </div>
             </div>
           </div>
@@ -78,14 +83,14 @@ export function UserDashboard() {
               {isEditing ? (
                 <input
                   type="text"
-                  value={editData.name}
-                  onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                  value={editData.fullName}
+                  onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
               ) : (
                 <div className="flex items-center space-x-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <User className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-900 dark:text-white">{user?.name}</span>
+                  <span className="text-gray-900 dark:text-white">{user?.fullName}</span>
                 </div>
               )}
             </div>
@@ -162,13 +167,13 @@ export function UserDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {user?.lastLogin ? Math.floor((Date.now() - new Date(user.lastLogin).getTime()) / (1000 * 60 * 60 * 24)) : 0}
+                {user?.lastLoginAt ? Math.floor((Date.now() - new Date(user.lastLoginAt).getTime()) / (1000 * 60 * 60 * 24)) : 0}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Days since last login</p>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {user?.status === 'active' ? 'Active' : 'Inactive'}
+                {user?.status}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Account Status</p>
             </div>

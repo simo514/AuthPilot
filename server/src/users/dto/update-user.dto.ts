@@ -1,7 +1,6 @@
 import { IsOptional, IsString, IsEmail, IsEnum, IsMongoId } from 'class-validator';
-import { Transform } from 'class-transformer';
-import { UserRole } from '../enums/user-role.enum';
 import { UserDepartment } from '../enums/user-department.enum';
+import { UserStatus } from '../enums/user-status.enum';
 
 export class UpdateUserDto {
 	@IsOptional()
@@ -21,6 +20,6 @@ export class UpdateUserDto {
 	department?: UserDepartment;
 
 	@IsOptional()
-	@IsString()
-	status?: string;
+	@IsEnum(UserStatus)
+	status?: UserStatus;
 }

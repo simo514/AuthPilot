@@ -47,7 +47,7 @@ export class UserResponseDto {
     updatedAt: Date;
 
     // Exclude sensitive fields
-    @Exclude()
+    @Expose()
     uuid: string;
 
     @Exclude()

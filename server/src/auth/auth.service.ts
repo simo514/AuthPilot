@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { plainToInstance } from 'class-transformer';
 import { LoginResponseDto, RefreshResponseDto } from './dto/auth-response.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -11,6 +12,44 @@ export class AuthService {
         private readonly jwtService: JwtService,
         private readonly usersService: UsersService,
     ) {}
+
+    async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
+        const { fullName, email, password, roleId, department } = registerDto;
+        
+        // Create user
+        await this.usersService.createUser({ fullName, email, password, roleId, department });
+        this.logger.log(`User registered successfully: ${email}`);
+
+        // Get created user without password
+        const user = await this.usersService.findByEmailWithPassword(email);
+        if (!user) {
+            throw new UnauthorizedException('Failed to retrieve created user');
+        }
+
+        // Generate JWT tokens
+        const payload = { 
+            email: user.email, 
+            sub: user.uuid,
+            role: user.role 
+        };
+        const accessToken = this.jwtService.sign(payload);
+        const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+        // Store refresh token in database
+        await this.usersService.updateRefreshToken(user.uuid, refreshToken);
+
+        // Get user data without password
+        const userData = await this.usersService.getUserById(user.uuid);
+
+        this.logger.log(`Tokens generated for registered user: ${email}`);
+        
+        // Transform to DTO to remove sensitive fields
+        return plainToInstance(LoginResponseDto, {
+            accessToken,
+            refreshToken,
+            user: userData
+        }, { excludeExtraneousValues: true });
+    }
 
 
     async login(email: string, password: string): Promise<LoginResponseDto> {

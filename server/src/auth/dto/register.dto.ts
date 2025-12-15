@@ -1,7 +1,7 @@
-import { IsNotEmpty, IsString, IsEmail, IsEnum, IsOptional, IsMongoId } from 'class-validator';
-import { UserDepartment } from '../enums/user-department.enum';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { UserDepartment } from "../../users/enums/user-department.enum";
 
-export class CreateUserDto {
+export class RegisterDto {
     @IsString()
     @IsNotEmpty()
     fullName: string;
@@ -15,11 +15,12 @@ export class CreateUserDto {
     @IsNotEmpty()
     password: string;
 
+    @IsString()
     @IsOptional()
-    @IsMongoId()
-    roleId?: string;
+    roleId: string;
 
     @IsOptional()
     @IsEnum(UserDepartment)
     department?: UserDepartment;
+
 }
