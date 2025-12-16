@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { UserListItem, CreateUserDto, UpdateUserDto, UserFilters } from '../types/user.types';
 import { RequestStatus } from '../types/api.types';
+import api from '../lib/api';
 
 // ============================================
 // USER STORE STATE
@@ -12,14 +13,11 @@ interface UserState {
   users: UserListItem[];
   selectedUser: UserListItem | null;
   filters: UserFilters;
-  total: number;
-  page: number;
-  limit: number;
   status: RequestStatus;
   error: string | null;
 
   // Actions
-  fetchUsers: (page?: number, limit?: number) => Promise<void>;
+  fetchUsers: () => Promise<void>;
   fetchUserById: (uuid: string) => Promise<void>;
   createUser: (data: CreateUserDto) => Promise<void>;
   updateUser: (uuid: string, data: UpdateUserDto) => Promise<void>;
@@ -40,15 +38,29 @@ export const useUserStore = create<UserState>()(
       users: [],
       selectedUser: null,
       filters: {},
-      total: 0,
-      page: 1,
-      limit: 10,
       status: RequestStatus.IDLE,
       error: null,
 
       // Actions
-      fetchUsers: async (page = 1, limit = 10) => {
-        // TODO: Implement fetch users logic
+      fetchUsers: async () => {
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+          const usersData = await api.get<UserListItem[]>('/users', {
+            params: {
+              ...get().filters,
+            },
+          });
+          set({
+            users: usersData.data,
+            status: RequestStatus.SUCCESS,
+            error: null,
+          });
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to fetch users.',
+          });
+        }
       },
 
       fetchUserById: async (uuid) => {
@@ -64,15 +76,28 @@ export const useUserStore = create<UserState>()(
       },
 
       deleteUser: async (uuid) => {
-        // TODO: Implement delete user logic
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+          await api.delete(`/users/${uuid}`);
+          set((state) => ({
+            users: state.users.filter((user) => user.uuid !== uuid),
+            status: RequestStatus.SUCCESS,
+            error: null,
+          }));
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to delete user.',
+          });
+        }
       },
 
       setFilters: (filters) => {
-        set({ filters, page: 1 });
+        set({ filters });
       },
 
       clearFilters: () => {
-        set({ filters: {}, page: 1 });
+        set({ filters: {} });
       },
 
       clearError: () => {

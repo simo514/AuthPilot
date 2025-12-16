@@ -1,118 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Plus, Edit2, Trash2, Users } from 'lucide-react';
-
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-  permissions: string[];
-  userCount: number;
-}
-
-const defaultPermissions = [
-  'view_dashboard',
-  'view_profile',
-  'edit_profile',
-  'view_users',
-  'create_users',
-  'edit_users',
-  'delete_users',
-  'view_roles',
-  'create_roles',
-  'edit_roles',
-  'delete_roles',
-  'view_audit_logs',
-  'export_data',
-  'manage_settings'
-];
+import { Shield, Plus, Edit2, Trash2 } from 'lucide-react';
+import { useRoleStore } from '../../store/useRoleStore';
+import { Role } from '../../types/role.types';
 
 export function RoleManagement() {
-  const [roles, setRoles] = useState<Role[]>([]);
+  const { roles, fetchRoles, status, error } = useRoleStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
 
   useEffect(() => {
-    const storedRoles = localStorage.getItem('roles');
-    if (storedRoles) {
-      setRoles(JSON.parse(storedRoles));
-    } else {
-      // Initialize with default roles
-      const defaultRoles: Role[] = [
-        {
-          id: '1',
-          name: 'Admin',
-          description: 'Full system access with all permissions',
-          permissions: defaultPermissions,
-          userCount: 1
-        },
-        {
-          id: '2',
-          name: 'Manager',
-          description: 'Department management with limited administrative access',
-          permissions: [
-            'view_dashboard',
-            'view_profile',
-            'edit_profile',
-            'view_users',
-            'edit_users',
-            'view_audit_logs',
-            'export_data'
-          ],
-          userCount: 1
-        },
-        {
-          id: '3',
-          name: 'User',
-          description: 'Basic user access with profile management',
-          permissions: [
-            'view_dashboard',
-            'view_profile',
-            'edit_profile'
-          ],
-          userCount: 1
-        }
-      ];
-      setRoles(defaultRoles);
-      localStorage.setItem('roles', JSON.stringify(defaultRoles));
-    }
-  }, []);
-
-  const handleCreateRole = (roleData: Omit<Role, 'id' | 'userCount'>) => {
-    const newRole: Role = {
-      ...roleData,
-      id: Date.now().toString(),
-      userCount: 0
-    };
-
-    const updatedRoles = [...roles, newRole];
-    setRoles(updatedRoles);
-    localStorage.setItem('roles', JSON.stringify(updatedRoles));
-    setShowCreateModal(false);
-  };
-
-  const handleUpdateRole = (roleData: Role) => {
-    const updatedRoles = roles.map(r => r.id === roleData.id ? roleData : r);
-    setRoles(updatedRoles);
-    localStorage.setItem('roles', JSON.stringify(updatedRoles));
-    setEditingRole(null);
-  };
-
-  const handleDeleteRole = (roleId: string) => {
-    const role = roles.find(r => r.id === roleId);
-    if (role && role.userCount > 0) {
-      alert('Cannot delete role with active users. Please reassign users first.');
-      return;
-    }
-
-    if (window.confirm('Are you sure you want to delete this role?')) {
-      const updatedRoles = roles.filter(r => r.id !== roleId);
-      setRoles(updatedRoles);
-      localStorage.setItem('roles', JSON.stringify(updatedRoles));
-    }
-  };
+    fetchRoles();
+  }, [fetchRoles]);
 
   const getPermissionLabel = (permission: string) => {
-    return permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return permission.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
   };
 
   return (
@@ -130,61 +31,65 @@ export function RoleManagement() {
 
       {/* Roles Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {roles.map((role) => (
-          <div key={role.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
-                  <Shield className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{role.name}</h3>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                    <Users className="h-4 w-4" />
-                    <span>{role.userCount} users</span>
+        {status === 'loading' ? (
+          <div className="col-span-full text-center text-gray-500 dark:text-gray-400 py-8">Loading roles...</div>
+        ) : error ? (
+          <div className="col-span-full text-center text-red-500 py-8">{error}</div>
+        ) : roles.length === 0 ? (
+          <div className="col-span-full text-center text-gray-500 dark:text-gray-400 py-8">No roles found</div>
+        ) : (
+          roles.map((role: Role) => (
+            <div key={role.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+                    <Shield className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{role.name}</h3>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setEditingRole(role)}
-                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                >
-                  <Edit2 className="h-4 w-4" />
-                </button>
-                {role.name !== 'Admin' && (
+                <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => handleDeleteRole(role.id)}
-                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                    onClick={() => setEditingRole(role)}
+                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Edit2 className="h-4 w-4" />
                   </button>
-                )}
+                  {role.name !== 'Admin' && (
+                    <button
+                      onClick={() => {/* TODO: implement delete */}}
+                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                {role.description}
+              </p>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Permissions</h4>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {role.permissions.slice(0, 5).map((permission: string) => (
+                    <div key={permission} className="flex items-center text-xs text-gray-600 dark:text-gray-400">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-2"></div>
+                      {getPermissionLabel(permission)}
+                    </div>
+                  ))}
+                  {role.permissions.length > 5 && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      +{role.permissions.length - 5} more
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              {role.description}
-            </p>
-
-            <div>
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Permissions</h4>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {role.permissions.slice(0, 5).map((permission) => (
-                  <div key={permission} className="flex items-center text-xs text-gray-600 dark:text-gray-400">
-                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-2"></div>
-                    {getPermissionLabel(permission)}
-                  </div>
-                ))}
-                {role.permissions.length > 5 && (
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    +{role.permissions.length - 5} more permissions
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Create Role Modal */}
@@ -192,8 +97,8 @@ export function RoleManagement() {
         <RoleModal
           title="Create New Role"
           onClose={() => setShowCreateModal(false)}
-          onSave={handleCreateRole}
-          permissions={defaultPermissions}
+          onSave={() => {}}
+          permissions={[]}
         />
       )}
 
@@ -203,8 +108,8 @@ export function RoleManagement() {
           title="Edit Role"
           role={editingRole}
           onClose={() => setEditingRole(null)}
-          onSave={handleUpdateRole}
-          permissions={defaultPermissions}
+          onSave={() => {}}
+          permissions={[]}
         />
       )}
     </div>
@@ -240,13 +145,13 @@ function RoleModal({
     }
   };
 
-  const handlePermissionToggle = (permission: string) => {
-    const updatedPermissions = formData.permissions.includes(permission)
-      ? formData.permissions.filter(p => p !== permission)
-      : [...formData.permissions, permission];
+  // const handlePermissionToggle = (permission: string) => {
+  //   const updatedPermissions = formData.permissions.includes(permission)
+  //     ? formData.permissions.filter(p => p !== permission)
+  //     : [...formData.permissions, permission];
     
-    setFormData({ ...formData, permissions: updatedPermissions });
-  };
+  //   setFormData({ ...formData, permissions: updatedPermissions });
+  // };
 
   const getPermissionLabel = (permission: string) => {
     return permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -286,7 +191,7 @@ function RoleModal({
             />
           </div>
 
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
               Permissions
             </label>
@@ -305,7 +210,7 @@ function RoleModal({
                 </label>
               ))}
             </div>
-          </div>
+          </div> */}
 
           <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button

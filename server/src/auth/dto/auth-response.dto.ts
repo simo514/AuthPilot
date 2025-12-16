@@ -14,8 +14,9 @@ export class RoleResponseDto {
     level: number;
 }
 
+
 export class UserResponseDto {
-    @Exclude()
+    @Expose()
     uuid: string;
 
     @Expose()

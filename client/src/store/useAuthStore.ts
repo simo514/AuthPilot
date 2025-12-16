@@ -20,7 +20,7 @@ interface AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
-  refreshAccessToken: () => Promise<void>;
+  refreshAccessToken: () => Promise<string>;
   clearError: () => void;
 }
 
@@ -101,8 +101,37 @@ export const useAuthStore = create<AuthState>()(
           });
         },
 
-        refreshAccessToken: async () => {
-          // TODO: Implement refresh token logic
+        refreshAccessToken: async (): Promise<string> => {
+          const currentRefreshToken = get().refreshToken;
+
+          if (!currentRefreshToken) {
+            throw new Error('No refresh token available');
+          }
+
+          try {
+            const response = await api.post<LoginResponse>('/auth/refresh', {
+              refreshToken: currentRefreshToken,
+            });
+            
+            const { accessToken, refreshToken: newRefreshToken } = response.data;
+            
+            set({
+              accessToken,
+              refreshToken: newRefreshToken,
+            });
+
+            return accessToken;
+          } catch (error) {
+            // Refresh failed - logout user
+            set({
+              user: null,
+              accessToken: null,
+              refreshToken: null,
+              isAuthenticated: false,
+              error: 'Session expired. Please login again.',
+            });
+            throw error;
+          }
         },
 
         clearError: () => {

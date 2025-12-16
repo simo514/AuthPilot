@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Role, CreateRoleDto, UpdateRoleDto } from '../types/role.types';
 import { RequestStatus } from '../types/api.types';
+import api from '../lib/api';
 
 // ============================================
 // ROLE STORE STATE
@@ -40,7 +41,20 @@ export const useRoleStore = create<RoleState>()(
 
       // Actions
       fetchRoles: async () => {
-        // TODO: Implement fetch roles logic
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+            const rolesData = await api.get<Role[]>('/roles');
+            set({
+              roles: rolesData.data,
+              status: RequestStatus.SUCCESS,
+              error: null,
+            });
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to fetch roles',
+          });
+        }   
       },
 
       fetchRoleById: async (id) => {
