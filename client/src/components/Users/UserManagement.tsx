@@ -233,11 +233,13 @@ export function UserManagement() {
         </div>
       </div>
 
+
       {/* Create User Modal */}
       {showCreateModal && (
         <CreateUserModal
           onClose={() => setShowCreateModal(false)}
           onSave={handleCreateUser}
+          roles={roles}
         />
       )}
 
@@ -256,9 +258,10 @@ export function UserManagement() {
 }
 
 // Create User Modal Component
-function CreateUserModal({ onClose, onSave }: {
+function CreateUserModal({ onClose, onSave, roles = [] }: {
   onClose: () => void;
   onSave: (user: any) => void;
+  roles?: any[];
 }) {
   const [formData, setFormData] = useState({
     fullName: '',
@@ -326,13 +329,20 @@ function CreateUserModal({ onClose, onSave }: {
               Role
             </label>
             <select
-              value={formData.role}
+              value={formData.role || ''}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              disabled={roles.length === 0}
             >
-              <option value="user">User</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Admin</option>
+              {roles.length === 0 ? (
+                <option>Loading roles...</option>
+              ) : (
+                roles.map((role) => (
+                  <option key={role.id || role._id} value={role.id || role._id}>
+                    {role.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 

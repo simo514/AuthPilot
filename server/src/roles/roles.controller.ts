@@ -3,6 +3,7 @@ import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { RoleResponseDto } from './dto/role-response.dto';
 import { plainToInstance } from 'class-transformer';
+import { Permission } from './enums/permission.enum';
 
 @Controller('roles')
 export class RolesController {
@@ -50,4 +51,12 @@ export class RolesController {
     async deleteRole(@Param('roleId') roleId: string): Promise<void> {
         return this.rolesService.deleteRole(roleId);
     }   
+
+    @Get('permissions')
+    @HttpCode(HttpStatus.OK)
+    async getAllPermissions(): Promise<string[]> {
+        return this.rolesService.getAllPermissions();
+    }
+
+
 }

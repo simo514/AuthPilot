@@ -3,6 +3,7 @@ import { Role, RoleDocument } from './role.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateRoleDto } from './dto/create-role.dto';
+import { Permission } from './enums/permission.enum';
 
 @Injectable()
 export class RolesService {
@@ -81,5 +82,9 @@ export class RolesService {
         } catch (err) {
             throw new InternalServerErrorException('Failed to delete role');
         }
+    }
+
+    getAllPermissions(): string[] {
+        return Object.values(Permission);
     }
 }
