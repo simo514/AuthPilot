@@ -9,13 +9,14 @@ type User = UserType;
 
 export function UserManagement() {
   const { user: currentUser } = useAuthStore();
-  const { users, fetchUsers, deleteUser, status, error } = useUserStore();
+  const { users, fetchUsers, deleteUser, status, error, updateUser, createUser } = useUserStore();
   const { roles, fetchRoles } = useRoleStore();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -55,20 +56,34 @@ export function UserManagement() {
   }, [users, searchTerm, filterRole, currentUser]);
 
   const handleDeleteUser = async (userId: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      await deleteUser(userId);
-    }
+    await deleteUser(userId);
+    setDeletingUser(null);
   };
 
   const handleCreateUser = async (userData: any) => {
-    // TODO: Implement create via useUserStore.createUser(userData)
-    console.log('Create user:', userData);
+    await createUser(userData);
     setShowCreateModal(false);
   };
-
   const handleUpdateUser = async (userData: any) => {
-    // TODO: Implement update via useUserStore.updateUser(userData.uuid, userData)
-    console.log('Update user:', userData);
+    if (userData.uuid) {
+      // Always send roleId as a string id (never name/object)
+      let payload = { ...userData };
+      let roleId = payload.roleId;
+      if (typeof roleId === 'object') {
+        roleId = roleId.id;
+      } else if (typeof roleId === 'string') {
+        // If it's a name, convert to id
+        const foundById = roles.find(r => r.id === roleId);
+        if (foundById) {
+          roleId = foundById.id;
+        } else {
+          const foundByName = roles.find(r => r.name === roleId);
+          if (foundByName) roleId = foundByName.id;
+        }
+      }
+      payload.roleId = roleId;
+      await updateUser(userData.uuid, payload);
+    }
     setEditingUser(null);
   };
 
@@ -89,30 +104,11 @@ export function UserManagement() {
         )}
       </div>
 
-      {/* Search and Filter */}
+      {/* Search and Filter (placeholder, implement as needed) */}
       <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          />
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="all">All Roles</option>
-            <option value="Admin">Admin</option>
-            <option value="Manager">Manager</option>
-            <option value="User">User</option>
-          </select>
+          {/* Add search/filter UI here if needed */}
         </div>
       </div>
 
@@ -168,7 +164,7 @@ export function UserManagement() {
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                           <span className="text-white text-sm font-semibold">
-                            {user.fullName.split(' ').map(n => n[0]).join('')}
+                            {(user.fullName || '').split(' ').map(n => n[0]).join('')}
                           </span>
                         </div>
                         <div className="ml-4">
@@ -217,7 +213,7 @@ export function UserManagement() {
                         </button>
                         {currentUser?.role === 'admin' && user.uuid !== currentUser.uuid && (
                           <button
-                            onClick={() => handleDeleteUser(user.uuid)}
+                            onClick={() => setDeletingUser(user)}
                             className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -251,6 +247,15 @@ export function UserManagement() {
           onSave={handleUpdateUser}
           currentUserRole={currentUser?.role}
           roles={roles}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingUser && (
+        <DeleteConfirmationModal
+          userName={deletingUser.fullName}
+          onConfirm={() => handleDeleteUser(deletingUser.uuid)}
+          onCancel={() => setDeletingUser(null)}
         />
       )}
     </div>
@@ -370,10 +375,57 @@ function CreateUserModal({ onClose, onSave, roles = [] }: {
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              Create User
+              Save Changes
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Delete Confirmation Modal Component
+function DeleteConfirmationModal({
+  userName,
+  onConfirm,
+  onCancel,
+}: {
+  userName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
+        <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 dark:bg-red-900/20 rounded-full mb-4">
+          <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+        </div>
+        
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
+          Delete User
+        </h3>
+        
+        <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">
+          Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-white">"{userName}"</span>? This action cannot be undone.
+        </p>
+        
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
+          >
+            Cancel
+          </button>
+          <div className="flex-1" />
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="px-2 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+          >
+            Delete User
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -387,7 +439,25 @@ function EditUserModal({ user, onClose, onSave, currentUserRole, roles }: {
   currentUserRole?: string;
   roles: any[];
 }) {
-  const [formData, setFormData] = useState<any>(user);
+  // Ensure formData.roleId is always the role's id (not name)
+  const initialRoleId = (() => {
+    if (user.roleId && typeof user.roleId === 'object') return user.roleId.id;
+    if (user.roleId && typeof user.roleId === 'string') {
+      // Try to match by id, fallback to match by name
+      const found = roles.find(r => r.id === user.roleId);
+      if (found) return found.id;
+      // If not found by id, try by name
+      const byName = roles.find(r => r.name === user.roleId);
+      if (byName) return byName.id;
+      return user.roleId;
+    }
+    if (user.role) {
+      const byName = roles.find(r => r.name === user.role);
+      if (byName) return byName.id;
+    }
+    return '';
+  })();
+  const [formData, setFormData] = useState<any>({ ...user, roleId: initialRoleId });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -434,7 +504,7 @@ function EditUserModal({ user, onClose, onSave, currentUserRole, roles }: {
                 Role
               </label>
               <select
-                value={formData.roleId?._id || formData.roleId}
+                value={formData.roleId}
                 onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 disabled={roles.length === 0}
@@ -443,7 +513,7 @@ function EditUserModal({ user, onClose, onSave, currentUserRole, roles }: {
                   <option>Loading roles...</option>
                 ) : (
                   roles.map((role) => (
-                    <option key={role._id} value={role._id}>
+                    <option key={role.id} value={role.id}>
                       {role.name}
                     </option>
                   ))

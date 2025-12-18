@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
 import { randomUUID } from 'crypto';
-import { UserRole } from './enums/user-role.enum';
 import { UserDepartment } from './enums/user-department.enum';
 import { UserStatus } from './enums/user-status.enum';
 
@@ -51,11 +50,10 @@ export class User {
 
   @Prop({
     type: String,
-    enum: Object.values(UserRole),
-    default: UserRole.USER,
-    index: true,
+    required: true,
   })
-  role: UserRole;
+  role: string;
+
 
   @Prop({
     type: String,

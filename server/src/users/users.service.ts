@@ -6,6 +6,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Role, RoleDocument } from '../roles/role.schema';
+import { UserResponseDto } from './dto/user-response.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class UsersService {
@@ -16,7 +18,7 @@ export class UsersService {
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
   ) {}
 
-  async createUser(createUserDto: CreateUserDto): Promise<void> {
+  async createUser(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const {fullName, email, password, roleId, department} = createUserDto;
     
     let finalRoleId = roleId;
@@ -63,6 +65,7 @@ export class UsersService {
       }
       throw new InternalServerErrorException('Failed to create user');
     }
+    return plainToInstance(UserResponseDto, createdUser, { excludeExtraneousValues: true });
   }
 
   async updateUser (uuid: string, updateData: UpdateUserDto): Promise<Omit<User, 'password'> | null> {

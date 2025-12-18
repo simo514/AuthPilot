@@ -1,4 +1,6 @@
 import { Exclude, Expose, Type } from 'class-transformer';
+import { Document, Types } from 'mongoose';
+import { UserDocument, User } from '../user.schema';
 
 export class UserRoleResponseDto {
     @Expose()
@@ -15,13 +17,16 @@ export class UserRoleResponseDto {
 }
 
 export class UserResponseDto {
+    static fromDocument(createdUser: Document<unknown, {}, UserDocument> & User & Document<any, any, any> & { _id: Types.ObjectId; }): UserResponseDto | PromiseLike<UserResponseDto> {
+      throw new Error('Method not implemented.');
+    }
     @Expose()
     email: string;
 
     @Expose()
     fullName: string;
 
-    @Expose()
+    @Exclude()
     @Type(() => UserRoleResponseDto)
     roleId: UserRoleResponseDto;
 

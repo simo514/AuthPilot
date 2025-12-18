@@ -68,11 +68,39 @@ export const useUserStore = create<UserState>()(
       },
 
       createUser: async (data) => {
-        // TODO: Implement create user logic
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+          const response = await api.post<UserListItem>('/users', data);
+          set((state) => ({
+            users: [...state.users, response.data],
+            status: RequestStatus.SUCCESS,
+            error: null,
+          }));
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to create user.',
+          });
+        }
       },
 
       updateUser: async (uuid, data) => {
-        // TODO: Implement update user logic
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+          const response = await api.patch<UserListItem>(`/users/${uuid}`, data);
+          set((state) => ({
+            users: state.users.map((user) =>
+              user.uuid === uuid ? response.data : user
+            ),
+            status: RequestStatus.SUCCESS,
+            error: null,
+          }));
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to update user.',
+          });
+        }
       },
 
       deleteUser: async (uuid) => {

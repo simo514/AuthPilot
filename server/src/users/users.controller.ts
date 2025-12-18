@@ -14,9 +14,9 @@ export class UsersController {
     @Post()
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
-    async createUser(@Body() createUserDto: CreateUserDto): Promise<{ message: string }> {
-        await this.usersService.createUser(createUserDto);
-        return { message: 'User created successfully' };
+    async createUser(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
+       const user = await this.usersService.createUser(createUserDto);
+        return plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true });  
     }
 
     @Patch(':uuid')
