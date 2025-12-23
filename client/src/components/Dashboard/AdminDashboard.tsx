@@ -1,7 +1,18 @@
-import React from 'react';
+import { useState } from 'react';
 import { Users, Shield, Activity, TrendingUp } from 'lucide-react';
+import { useUserStore } from '../../store/useUserStore';
+import { useRoleStore } from '../../store/useRoleStore';
+import { CreateUserDto } from '../../types/user.types';
+import { Permission } from '../../types/auth.types';
+import { CreateUserModal } from '../Users/UserManagement';
+import { CreateRoleDto } from '../../types/role.types';
+import { RoleModal } from '../Roles/RoleManagement';
 
 export function AdminDashboard() {
+  const { createUser } = useUserStore();
+  const { roles, fetchRoles, permissions, fetchPermissions, createRole } = useRoleStore();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateRoleModal, setShowCreateRoleModal] = useState(false);
   const stats = [
     {
       title: 'Total Users',
@@ -116,14 +127,38 @@ export function AdminDashboard() {
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+            <button
+              className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+              onClick={() => {
+                fetchRoles();
+                setShowCreateModal(true);
+              }}
+            >
               <Users className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Add New User</p>
             </button>
-            <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+            <button
+              className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+              onClick={() => {
+                fetchPermissions();
+                setShowCreateRoleModal(true);
+              }}
+            >
               <Shield className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Create Role</p>
             </button>
+                  {/* Create Role Modal (reused from RoleManagement) */}
+                  {showCreateRoleModal && (
+                    <RoleModal
+                      title="Create New Role"
+                      onClose={() => setShowCreateRoleModal(false)}
+                      onSave={async (formData: CreateRoleDto) => {
+                        await createRole({ ...formData, level: 0 });
+                        setShowCreateRoleModal(false);
+                      }}
+                      permissions={(permissions as Permission[]) || []}
+                    />
+                  )}
             <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
               <Activity className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">View Reports</p>
@@ -131,6 +166,18 @@ export function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Create User Modal (reused from UserManagement) */}
+      {showCreateModal && (
+        <CreateUserModal
+          onClose={() => setShowCreateModal(false)}
+          onSave={async (userData: CreateUserDto) => {
+            await createUser(userData);
+            setShowCreateModal(false);
+          }}
+          roles={roles}
+        />
+      )}
     </div>
   );
 }

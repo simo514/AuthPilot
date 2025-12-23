@@ -1,48 +1,52 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { Mail, Lock, User, Eye, EyeOff, Shield } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuthStore } from '../../store/useAuthStore';
+import { UserDepartment } from '../../types/auth.types';
+import { Mail, Lock, User, Eye, EyeOff, Shield, Briefcase } from 'lucide-react';
 
 interface SignupProps {
-  onToggleMode: () => void;
+  onToggleMode?: () => void;
 }
 
 export function Signup({ onToggleMode }: SignupProps) {
+  const navigate = useNavigate();
+  const { register, isLoading, error: storeError, clearError } = useAuthStore();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [department, setDepartment] = useState<UserDepartment>(UserDepartment.ENGINEERING);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { signup } = useAuth();
+  const [localError, setLocalError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    setLocalError('');
+    clearError();
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
+      setLocalError('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      setLoading(false);
+      setLocalError('Password must be at least 6 characters long');
       return;
     }
 
     try {
-      const success = await signup(email, password, name);
-      if (!success) {
-        setError('An account with this email already exists');
-      }
+      await register({
+        fullName,
+        email,
+        password,
+        department,
+      });
+      // Success - redirect to dashboard
+      navigate('/dashboard');
     } catch (err) {
-      setError('An error occurred. Please try again.');
-    } finally {
-      setLoading(false);
+      // Error is handled in store
     }
   };
 
@@ -60,18 +64,18 @@ export function Signup({ onToggleMode }: SignupProps) {
         <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-xl rounded-lg">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Full name
               </label>
               <div className="mt-1 relative">
                 <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <input
-                  id="name"
-                  name="name"
+                  id="fullName"
+                  name="fullName"
                   type="text"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   placeholder="Enter your full name"
                 />
@@ -149,19 +153,42 @@ export function Signup({ onToggleMode }: SignupProps) {
               </div>
             </div>
 
-            {error && (
+            <div>
+              <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Department
+              </label>
+              <div className="mt-1 relative">
+                <Briefcase className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <select
+                  id="department"
+                  name="department"
+                  required
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value as UserDepartment)}
+                  className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                >
+                  {Object.values(UserDepartment).map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {(localError || storeError) && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{localError || storeError}</p>
               </div>
             )}
 
             <div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isLoading}
                 className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Creating account...' : 'Create account'}
+                {isLoading ? 'Creating account...' : 'Create account'}
               </button>
             </div>
           </form>
@@ -169,12 +196,21 @@ export function Signup({ onToggleMode }: SignupProps) {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Already have an account?{' '}
-              <button
-                onClick={onToggleMode}
-                className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
-              >
-                Sign in
-              </button>
+              {onToggleMode ? (
+                <button
+                  onClick={onToggleMode}
+                  className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
+                >
+                  Sign in
+                </button>
+              ) : (
+                <Link
+                  to="/login"
+                  className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
+                >
+                  Sign in
+                </Link>
+              )}
             </p>
           </div>
         </div>

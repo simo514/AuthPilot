@@ -1,33 +1,32 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuthStore } from '../../store/useAuthStore';
 import { Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 
 interface LoginProps {
-  onToggleMode: () => void;
+  onToggleMode?: () => void;
 }
 
 export function Login({ onToggleMode }: LoginProps) {
+  const navigate = useNavigate();
+  const { login, isLoading, error: storeError, clearError } = useAuthStore();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [localError, setLocalError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    setLocalError('');
+    clearError();
 
     try {
-      const success = await login(email, password);
-      if (!success) {
-        setError('Invalid email or password');
-      }
+      await login({ email, password });
+      // Success - redirect to dashboard
+      navigate('/dashboard');
     } catch (err) {
-      setError('An error occurred. Please try again.');
-    } finally {
-      setLoading(false);
+      // Error is handled in store
     }
   };
 
@@ -89,19 +88,19 @@ export function Login({ onToggleMode }: LoginProps) {
               </div>
             </div>
 
-            {error && (
+            {(localError || storeError) && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{localError || storeError}</p>
               </div>
             )}
 
             <div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isLoading}
                 className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Signing in...' : 'Sign in'}
+                {isLoading ? 'Signing in...' : 'Sign in'}
               </button>
             </div>
           </form>
@@ -109,12 +108,21 @@ export function Login({ onToggleMode }: LoginProps) {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Don't have an account?{' '}
-              <button
-                onClick={onToggleMode}
-                className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
-              >
-                Sign up
-              </button>
+              {onToggleMode ? (
+                <button
+                  onClick={onToggleMode}
+                  className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
+                >
+                  Sign up
+                </button>
+              ) : (
+                <Link
+                  to="/signup"
+                  className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
+                >
+                  Sign up
+                </Link>
+              )}
             </p>
           </div>
 
