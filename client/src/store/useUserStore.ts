@@ -3,6 +3,21 @@ import { devtools } from 'zustand/middleware';
 import { UserListItem, CreateUserDto, UpdateUserDto, UserFilters } from '../types/user.types';
 import { RequestStatus } from '../types/api.types';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
+
+// Helper to extract error message from API error
+function extractApiErrorMessage(error: any, fallback = 'An error occurred.') {
+  if (error?.response?.data?.message) {
+    if (Array.isArray(error.response.data.message)) {
+      return error.response.data.message.join(' ');
+    }
+    return error.response.data.message;
+  }
+  if (typeof error?.message === 'string') {
+    return error.message;
+  }
+  return fallback;
+}
 
 // ============================================
 // USER STORE STATE
@@ -76,11 +91,14 @@ export const useUserStore = create<UserState>()(
             status: RequestStatus.SUCCESS,
             error: null,
           }));
-        } catch (error) {
+          toast.success('User created successfully');
+        } catch (error: any) {
+          const errorMsg = extractApiErrorMessage(error, 'Failed to create user.');
           set({
             status: RequestStatus.ERROR,
-            error: 'Failed to create user.',
+            error: errorMsg,
           });
+          toast.error(errorMsg);
         }
       },
 
@@ -112,11 +130,13 @@ export const useUserStore = create<UserState>()(
             status: RequestStatus.SUCCESS,
             error: null,
           }));
+          toast.success('User deleted successfully');
         } catch (error) {
           set({
             status: RequestStatus.ERROR,
             error: 'Failed to delete user.',
           });
+          toast.error(extractApiErrorMessage(error, 'Failed to delete user.'));
         }
       },
 

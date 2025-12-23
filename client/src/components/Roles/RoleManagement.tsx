@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, ToggleRight } from 'lucide-react';
 import { useRoleStore } from '../../store/useRoleStore';
 import { Role } from '../../types/role.types';
 import { Permission } from '../../types/auth.types';
 
 export function RoleManagement() {
-  const { roles, fetchRoles, status, error, fetchPermissions, permissions, createRole, deleteRole } = useRoleStore();
+  const { roles, fetchRoles, status, error, fetchPermissions, permissions, createRole, deleteRole, toggleRoleStatus, updateRolePermissions } = useRoleStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [deletingRole, setDeletingRole] = useState<Role | null>(null);
+  const [editingPermissionsRole, setEditingPermissionsRole] = useState<Role | null>(null);
 
   // Fetch permissions when opening the create modal
   useEffect(() => {
@@ -29,8 +30,6 @@ export function RoleManagement() {
     const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
     return `${cap(action)} ${cap(resource)}`;
   };
-
-
 
   return (
     <div className="p-6 space-y-6">
@@ -67,6 +66,20 @@ export function RoleManagement() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
+                    onClick={() => toggleRoleStatus(role.id)}
+                    className={`relative w-7 h-4 rounded-full transition-colors duration-200 focus:outline-none border ${role.isActive ? 'bg-blue-500 border-blue-500' : 'bg-gray-300 dark:bg-gray-700 border-gray-300 dark:border-gray-700'}`}
+                    title={role.isActive ? 'Active' : 'Inactive'}
+                  >
+                    <span
+                      className={`absolute left-0 top-0 w-7 h-4 flex items-center px-0.5 transition-colors duration-200 ${role.isActive ? 'text-white' : 'text-gray-400'}`}
+                    >
+                      <span
+                        className={`inline-block w-3 h-3 rounded-full bg-white shadow transform transition-transform duration-200 ${role.isActive ? 'translate-x-3' : ''}`}
+                        style={{ marginBottom: '2px' }}
+                      />
+                    </span>
+                  </button>
+                  <button
                     onClick={() => setEditingRole(role)}
                     className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                   >
@@ -88,7 +101,19 @@ export function RoleManagement() {
               </p>
 
               <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Permissions</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Permissions</h4>
+                  <button
+                    className="ml-2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                    title="Edit Permissions"
+                    onClick={() => {
+                      fetchPermissions();
+                      setEditingPermissionsRole(role);
+                    }}
+                  >
+                    <Edit2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </button>
+                </div>
                 <div className="space-y-1 max-h-32 overflow-y-auto">
                   {role.permissions.slice(0, 5).map((permission: string) => (
                     <div key={permission} className="flex items-center text-xs text-gray-600 dark:text-gray-400">
@@ -115,8 +140,12 @@ export function RoleManagement() {
           title="Create New Role"
           onClose={() => setShowCreateModal(false)}
           onSave={async (formData) => {
-            await createRole({ ...formData, level: 0 });
-            setShowCreateModal(false);
+            try {
+              await createRole({ ...formData, level: 0 });
+              setShowCreateModal(false);
+            } catch (err) {
+              // error handled in store
+            }
           }}
           permissions={(permissions as Permission[]) || []}
         />
@@ -138,10 +167,31 @@ export function RoleManagement() {
         <DeleteConfirmationModal
           roleName={deletingRole.name}
           onConfirm={async () => {
-            await deleteRole(deletingRole.id);
+            try {
+              await deleteRole(deletingRole.id);
+            } catch (err) {
+              // error handled in store
+            }
             setDeletingRole(null);
           }}
           onCancel={() => setDeletingRole(null)}
+        />
+      )}
+
+      {/* Edit Permissions Modal */}
+      {editingPermissionsRole && (
+        <EditPermissionsModal
+          role={editingPermissionsRole}
+          permissions={(permissions as Permission[]) || []}
+          onClose={() => setEditingPermissionsRole(null)}
+          onSave={async (selectedPermissions) => {
+            try {
+              await updateRolePermissions(editingPermissionsRole.id, selectedPermissions);
+              setEditingPermissionsRole(null);
+            } catch (err) {
+              // error handled in store
+            }
+          }}
         />
       )}
     </div>
@@ -150,7 +200,7 @@ export function RoleManagement() {
 
 
 // Role Modal Component
-function RoleModal({
+export function RoleModal({
   title,
   role,
   onClose,
@@ -184,6 +234,8 @@ function RoleModal({
       : [...formData.permissions, permission];
     setFormData({ ...formData, permissions: updatedPermissions });
   };
+
+  
 
   // Converts 'user:create' to 'Create User', 'role:update' to 'Update Role', etc.
   const getPermissionLabel = (permission: string) => {
@@ -316,6 +368,94 @@ function DeleteConfirmationModal({
             Delete Role
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Edit Permissions Modal Component
+function EditPermissionsModal({
+  role,
+  permissions,
+  onClose,
+  onSave,
+}: {
+  role: Role;
+  permissions: Permission[];
+  onClose: () => void;
+  onSave: (permissions: string[]) => void;
+}) {
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(role.permissions || []);
+
+  const handlePermissionToggle = (permission: Permission) => {
+    const updatedPermissions = selectedPermissions.includes(permission)
+      ? selectedPermissions.filter((p) => p !== permission)
+      : [...selectedPermissions, permission];
+    setSelectedPermissions(updatedPermissions);
+  };
+
+  const getPermissionLabel = (permission: string) => {
+    if (!permission.includes(':')) return permission;
+    const [resource, action] = permission.split(':');
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    return `${cap(action)} ${cap(resource)}`;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(selectedPermissions);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Edit Permissions for {role.name}
+          </h2>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+              Select Permissions
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+              {permissions.map((permission) => (
+                <label
+                  key={permission}
+                  className="flex items-center gap-3 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-150 cursor-pointer group"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedPermissions.includes(permission)}
+                    onChange={() => handlePermissionToggle(permission)}
+                    className="accent-blue-600 w-5 h-5 rounded border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100 group-hover:text-blue-600 transition-colors">
+                    {getPermissionLabel(permission)}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Update Permissions
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

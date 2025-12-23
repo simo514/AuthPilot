@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { DashboardLayout } from './components/Layout/DashboardLayout';
 import { AdminDashboard } from './components/Dashboard/AdminDashboard';
@@ -11,10 +12,34 @@ import { AuditLogs } from './components/Audit/AuditLogs';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { AuthPage } from './components/Auth/AuthPage';
 import { useAuthStore } from './store/useAuthStore';
+import { useThemeStore } from './store/useThemeStore';
+import { useEffect } from 'react';
 
 function App() {
+  const { theme } = useThemeStore();
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else if (theme === 'light') {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    } else {
+      // 'system' - use prefers-color-scheme
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        root.classList.add('dark');
+        root.classList.remove('light');
+      } else {
+        root.classList.add('light');
+        root.classList.remove('dark');
+      }
+    }
+  }, [theme]);
   return (
     <ThemeProvider>
+      <Toaster position="top-right" />
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<AuthPage />} />

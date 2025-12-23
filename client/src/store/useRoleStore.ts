@@ -3,6 +3,21 @@ import { devtools } from 'zustand/middleware';
 import { Role, CreateRoleDto, UpdateRoleDto } from '../types/role.types';
 import { RequestStatus } from '../types/api.types';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
+
+// Helper to extract error message from API error
+function extractApiErrorMessage(error: any, fallback = 'An error occurred.') {
+  if (error?.response?.data?.message) {
+    if (Array.isArray(error.response.data.message)) {
+      return error.response.data.message.join(' ');
+    }
+    return error.response.data.message;
+  }
+  if (typeof error?.message === 'string') {
+    return error.message;
+  }
+  return fallback;
+}
 
 // ============================================
 // ROLE STORE STATE
@@ -71,11 +86,13 @@ export const useRoleStore = create<RoleState>()(
               status: RequestStatus.SUCCESS,
               error: null,
             }));
+            toast.success('Role created successfully');
         } catch (error) {
           set({
             status: RequestStatus.ERROR,
             error: 'Failed to create role',
           });
+          toast.error(extractApiErrorMessage(error, 'Failed to create role'));
         }
       },
 
@@ -92,20 +109,62 @@ export const useRoleStore = create<RoleState>()(
               status: RequestStatus.SUCCESS,
               error: null,
             }));
+            toast.success('Role deleted successfully');
         } catch (error) {
           set({
             status: RequestStatus.ERROR,
             error: 'Failed to delete role',
           });
+            toast.error(extractApiErrorMessage(error, 'Failed to delete role'));
         }
       },
 
       updateRolePermissions: async (id, permissions) => {
-        // TODO: Implement update role permissions logic
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+            const response = await api.patch<Role>(`/roles/${id}/permissions`, { permissions });
+            set((state) => ({
+              roles: state.roles.map((role) =>
+                role.id === id ? response.data : role
+              ),
+              status: RequestStatus.SUCCESS,
+              error: null,
+            }));
+            toast.success('Role permissions updated successfully');
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to update role permissions',
+          });
+          toast.error(extractApiErrorMessage(error, 'Failed to update role permissions'));
+        }   
       },
 
       toggleRoleStatus: async (id) => {
-        // TODO: Implement toggle role status logic
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+            const role = get().roles.find((r) => r.id === id);
+            if (!role) throw new Error('Role not found');
+
+            const response = await api.patch<Role>(`/roles/${id}/toggle-status`, {
+              isActive: !role.isActive,
+            });
+
+            set((state) => ({
+              roles: state.roles.map((r) =>
+                r.id === id ? response.data : r
+              ),
+              status: RequestStatus.SUCCESS,
+              error: null,
+            }));
+            toast.success(`Role ${response.data.isActive ? 'activated' : 'deactivated'} successfully`);
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to toggle role status',
+          });
+          toast.error(extractApiErrorMessage(error, 'Failed to toggle role status'));
+        }   
       },
 
       fetchPermissions: async () => {

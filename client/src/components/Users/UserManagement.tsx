@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUserStore } from '../../store/useUserStore';
 import { User as UserType } from '../../types/auth.types';
@@ -56,13 +57,21 @@ export function UserManagement() {
   }, [users, searchTerm, filterRole, currentUser]);
 
   const handleDeleteUser = async (userId: string) => {
-    await deleteUser(userId);
+    try {
+      await deleteUser(userId);
+    } catch (err) {
+      // error handled in store
+    }
     setDeletingUser(null);
   };
 
   const handleCreateUser = async (userData: any) => {
-    await createUser(userData);
-    setShowCreateModal(false);
+    try {
+      await createUser(userData);
+      setShowCreateModal(false);
+    } catch (err) {
+      // error handled in store
+    }
   };
   const handleUpdateUser = async (userData: any) => {
     if (userData.uuid) {
@@ -81,7 +90,12 @@ export function UserManagement() {
           if (foundByName) roleId = foundByName.id;
         }
       }
-      payload.roleId = roleId;
+      // Only include roleId if it's a non-empty string
+      if (roleId && typeof roleId === 'string' && roleId.trim() !== '') {
+        payload.roleId = roleId;
+      } else {
+        delete payload.roleId;
+      }
       await updateUser(userData.uuid, payload);
     }
     setEditingUser(null);
@@ -235,7 +249,7 @@ export function UserManagement() {
         <CreateUserModal
           onClose={() => setShowCreateModal(false)}
           onSave={handleCreateUser}
-          roles={roles}
+          roles={roles.filter((role) => role.isActive)}
         />
       )}
 
@@ -246,7 +260,7 @@ export function UserManagement() {
           onClose={() => setEditingUser(null)}
           onSave={handleUpdateUser}
           currentUserRole={currentUser?.role}
-          roles={roles}
+          roles={roles.filter((role) => role.isActive)}
         />
       )}
 
@@ -263,7 +277,7 @@ export function UserManagement() {
 }
 
 // Create User Modal Component
-function CreateUserModal({ onClose, onSave, roles = [] }: {
+export function CreateUserModal({ onClose, onSave, roles = [] }: {
   onClose: () => void;
   onSave: (user: any) => void;
   roles?: any[];
