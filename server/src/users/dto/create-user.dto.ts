@@ -19,6 +19,9 @@ export class CreateUserDto {
     @IsMongoId()
     roleId?: string;
 
+    @IsString()
+    managerId: string;
+
     @IsOptional()
     @IsEnum(UserDepartment)
     department?: UserDepartment;

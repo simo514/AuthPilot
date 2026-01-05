@@ -26,7 +26,7 @@ export class UserResponseDto {
     @Expose()
     fullName: string;
 
-    @Exclude()
+    @Expose()
     @Type(() => UserRoleResponseDto)
     roleId: UserRoleResponseDto;
 
@@ -35,6 +35,9 @@ export class UserResponseDto {
 
     @Expose()
     department: string;
+
+    @Expose()
+    managerId: string;
 
     @Expose()
     status: string;

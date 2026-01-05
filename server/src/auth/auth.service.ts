@@ -14,10 +14,10 @@ export class AuthService {
     ) {}
 
     async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
-        const { fullName, email, password, roleId, department } = registerDto;
+        const { fullName, email, password, roleId, department, managerId } = registerDto;
         
         // Create user
-        await this.usersService.createUser({ fullName, email, password, roleId, department });
+        await this.usersService.createUser({ fullName, email, password, roleId, department, managerId});
         this.logger.log(`User registered successfully: ${email}`);
 
         // Get created user without password
@@ -48,7 +48,10 @@ export class AuthService {
             accessToken,
             refreshToken,
             user: userData
-        }, { excludeExtraneousValues: true });
+        }, { 
+            excludeExtraneousValues: true,
+            enableImplicitConversion: true 
+        });
     }
 
 
@@ -95,7 +98,10 @@ export class AuthService {
             accessToken,
             refreshToken,
             user: userData
-        }, { excludeExtraneousValues: true });
+        }, { 
+            excludeExtraneousValues: true,
+            enableImplicitConversion: true 
+        });
     }
 
     async refreshToken(refreshToken: string): Promise<RefreshResponseDto> {

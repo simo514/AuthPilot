@@ -9,6 +9,7 @@ export interface CreateUserDto {
   email: string;
   password: string;
   roleId?: string;
+  managerId: string;
   department: UserDepartment;
 }
 
@@ -17,6 +18,7 @@ export interface UpdateUserDto {
   email?: string;
   roleId?: string;
   department?: UserDepartment;
+  managerId?: string;
   status?: UserStatus;
 }
 

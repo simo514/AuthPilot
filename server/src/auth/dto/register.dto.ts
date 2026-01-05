@@ -19,6 +19,10 @@ export class RegisterDto {
     @IsOptional()
     roleId: string;
 
+    @IsString()
+    @IsOptional()
+    managerId: string;
+
     @IsOptional()
     @IsEnum(UserDepartment)
     department?: UserDepartment;

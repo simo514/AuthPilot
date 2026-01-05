@@ -19,7 +19,7 @@ export class UsersService {
   ) {}
 
   async createUser(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    const {fullName, email, password, roleId, department} = createUserDto;
+    const {fullName, email, password, roleId, department, managerId} = createUserDto;
     
     let finalRoleId = roleId;
     let roleName = 'user';
@@ -53,6 +53,7 @@ export class UsersService {
       password: await bcrypt.hash(password, 10),
       roleId: finalRoleId,
       role: roleName,
+      managerId,
       ...(department && { department }),
     });
     try {
@@ -184,6 +185,40 @@ export class UsersService {
     }
   }
 
+  async getManagers(): Promise<Omit<User, 'password'>[]> {
+    try {
+      const managers = await this.userModel
+        .find({ role: 'manager' })
+        .select('-password')
+        .populate('roleId', 'name permissions isActive level -_id')
+        .lean()
+        .exec();
+      
+      this.logger.log(`Retrieved ${managers.length} managers`);
+      return managers;
+    } catch (error) {
+      this.logger.error('Failed to fetch managers', error.stack);
+      throw new InternalServerErrorException('Failed to fetch managers');
+    }
+  }
+
+  async getUsersbyManager(managerId: string): Promise<Omit<User, 'password'>[]> {
+    try {
+      const users = await this.userModel
+        .find({ managerId })
+        .select('-password')
+        .populate('roleId', 'name permissions isActive level -_id')
+        .lean()
+        .exec();
+      
+      this.logger.log(`Retrieved ${users.length} users for manager: ${managerId}`);
+      return users;
+    } catch (error) {
+      this.logger.error(`Failed to fetch users for manager: ${managerId}`, error.stack);
+      throw new InternalServerErrorException('Failed to fetch users for manager');
+    }
+  }
+
   async findByEmailWithPassword(email: string): Promise<UserDocument | null> {
     try {
       const user = await this.userModel
@@ -242,31 +277,30 @@ export class UsersService {
     }
   }
 
-  async updatePassword(uuid: string, newPassword: string): Promise<void> {
-    this.logger.log(`Updating password for user: ${uuid}`);
+  async updatePassword(email: string, currentPassword: string, newPassword: string): Promise<void> {
     try {
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      
-      const result = await this.userModel
-        .findOneAndUpdate(
-          { uuid },
-          { 
-            password: hashedPassword,
-            resetPasswordToken: null,
-            resetPasswordExpires: null
-          },
-          { new: true }
-        )
-        .exec();
-
-      if (!result) {
+      // Find user with password
+      const user = await this.userModel.findOne({ email: email.toLowerCase() }).select('+password').exec();
+      if (!user) {
         throw new NotFoundException('User not found');
       }
 
-      this.logger.log(`Password updated successfully for user: ${uuid}`);
+      // Compare current password
+      const isMatch = await this.comparePasswords(currentPassword, user.password);
+      if (!isMatch) {
+        throw new BadRequestException('Current password is incorrect');
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+      user.resetPasswordToken = null;
+      user.resetPasswordExpires = null;
+      await user.save();
+
+      this.logger.log(`Password updated successfully for user: ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to update password: ${uuid}`, error.stack);
-      throw new InternalServerErrorException('Failed to update password');
+      this.logger.error(`Failed to update password: ${email}`, error.stack);
+      throw error instanceof NotFoundException || error instanceof BadRequestException ? error : new InternalServerErrorException('Failed to update password');
     }
   }
 

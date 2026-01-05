@@ -1,14 +1,11 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useUserStore } from '../../store/useUserStore';
 import { Lock, Bell, User, Save, Eye, EyeOff } from 'lucide-react';
 
 export function Settings() {
-  const { user } = useAuthStore();
-  
-  // TODO: Implement updateUser in store
-  const updateUser = (data: any) => {
-    console.log('Update user:', data);
-  };
+  const { user, resetPassword, error, clearError, updateCurrentUser } = useAuthStore();
+  const updateUser = useUserStore((state) => state.updateUser);
   const [activeTab, setActiveTab] = useState('profile');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -36,27 +33,53 @@ export function Settings() {
     };
   });
 
-  const handleProfileSave = () => {
-    updateUser(profileData);
-    alert('Profile updated successfully!');
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+
+  const handleProfileSave = async () => {
+    setProfileError(null);
+    setProfileMessage(null);
+    if (!user?.uuid) {
+      setProfileError('User not found.');
+      return;
+    }
+    try {
+      // cast to any to satisfy UpdateUserDto's department union type (convert explicitly if possible)
+      await updateUser(user.uuid, profileData as any);
+      // Update the current user in auth store so UI reflects changes immediately
+      updateCurrentUser(profileData as any);
+      setProfileMessage('Profile updated successfully!');
+    } catch (err: any) {
+      setProfileError(err?.message || 'Failed to update profile.');
+      setProfileMessage(null);
+    }
   };
 
-  const handlePasswordSave = () => {
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const handlePasswordSave = async () => {
+    setPasswordMessage(null);
+    setPasswordError(null);
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match!');
+      setPasswordError('New passwords do not match!');
       return;
     }
     if (passwordData.newPassword.length < 6) {
-      alert('Password must be at least 6 characters long!');
+      setPasswordError('Password must be at least 6 characters long!');
       return;
     }
-    // In a real app, you would validate the current password
-    alert('Password updated successfully!');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
+    try {
+      await resetPassword(profileData.email, passwordData.currentPassword, passwordData.newPassword);
+      setPasswordMessage('Password updated successfully!');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to update password.');
+    }
   };
 
   const handleNotificationSave = () => {
@@ -102,7 +125,12 @@ export function Settings() {
           {activeTab === 'profile' && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Profile Information</h2>
-              
+              {profileMessage && (
+                <div className="text-green-600 dark:text-green-400">{profileMessage}</div>
+              )}
+              {profileError && (
+                <div className="text-red-600 dark:text-red-400">{profileError}</div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -110,8 +138,8 @@ export function Settings() {
                   </label>
                   <input
                     type="text"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                    value={profileData.fullName}
+                    onChange={(e) => setProfileData({ ...profileData, fullName: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
@@ -132,12 +160,23 @@ export function Settings() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Department
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={profileData.department}
                     onChange={(e) => setProfileData({ ...profileData, department: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
+                  >
+                    {(!profileData.department || profileData.department === '') && (
+                      <option value="">Select Department</option>
+                    )}
+                    <option value="Engineering">Engineering</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Sales">Sales</option>
+                    <option value="HR">HR</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Product">Product</option>
+                    <option value="Support">Support</option>
+                  </select>
                 </div>
 
                 <div>
@@ -168,7 +207,12 @@ export function Settings() {
           {activeTab === 'password' && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Change Password</h2>
-              
+              {passwordMessage && (
+                <div className="text-green-600 dark:text-green-400">{passwordMessage}</div>
+              )}
+              {passwordError && (
+                <div className="text-red-600 dark:text-red-400">{passwordError}</div>
+              )}
               <div className="space-y-4 max-w-md">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

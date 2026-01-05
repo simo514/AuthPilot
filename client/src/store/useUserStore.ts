@@ -26,6 +26,7 @@ function extractApiErrorMessage(error: any, fallback = 'An error occurred.') {
 interface UserState {
   // State
   users: UserListItem[];
+  managers: UserListItem[];
   selectedUser: UserListItem | null;
   filters: UserFilters;
   status: RequestStatus;
@@ -40,6 +41,8 @@ interface UserState {
   setFilters: (filters: UserFilters) => void;
   clearFilters: () => void;
   clearError: () => void;
+  fetchUserByManagerId: (managerId: string) => Promise<void>;
+  fetchManagers: () => Promise<void>;
 }
 
 // ============================================
@@ -51,6 +54,7 @@ export const useUserStore = create<UserState>()(
     (set, get) => ({
       // Initial State
       users: [],
+      managers: [],
       selectedUser: null,
       filters: {},
       status: RequestStatus.IDLE,
@@ -113,11 +117,13 @@ export const useUserStore = create<UserState>()(
             status: RequestStatus.SUCCESS,
             error: null,
           }));
-        } catch (error) {
+        } catch (error: any) {
+          const errorMsg = extractApiErrorMessage(error, 'Failed to update user.');
           set({
             status: RequestStatus.ERROR,
-            error: 'Failed to update user.',
+            error: errorMsg,
           });
+          throw new Error(errorMsg);
         }
       },
 
@@ -137,6 +143,41 @@ export const useUserStore = create<UserState>()(
             error: 'Failed to delete user.',
           });
           toast.error(extractApiErrorMessage(error, 'Failed to delete user.'));
+        }
+      },
+
+      fetchUserByManagerId: async (managerId) => {
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+          const response = await api.get<UserListItem[]>(`/users/users-by-manager/${managerId}`);
+          set({
+            users: response.data,
+            status: RequestStatus.SUCCESS,
+            error: null,
+          });
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to fetch users by manager ID.',
+          });
+        }
+      },
+
+
+      fetchManagers: async () => {  
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+          const response = await api.get<UserListItem[]>(`/users/managers`);
+          set({
+            managers: response.data,
+            status: RequestStatus.SUCCESS,
+            error: null,
+          });
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to fetch managers.',
+          });
         }
       },
 

@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore';
+
+import { useIsManager } from '../../hooks/useIsManager';
 import { useUserStore } from '../../store/useUserStore';
-import { User as UserType } from '../../types/auth.types';
+import { User as UserType, Permission } from '../../types/auth.types';
 import { Search, Filter, Plus, Edit2, Trash2 } from 'lucide-react';
 import { useRoleStore } from '../../store';
+import { PermissionGuard } from '../Auth/PermissionGuard';
 
 type User = UserType;
 
 export function UserManagement() {
   const { user: currentUser } = useAuthStore();
+  const isManager = useIsManager();
   const { users, fetchUsers, deleteUser, status, error, updateUser, createUser } = useUserStore();
   const { roles, fetchRoles } = useRoleStore();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -19,9 +23,15 @@ export function UserManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
+
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    if (isManager && currentUser?.uuid) {
+      // Fetch only users managed by this manager
+      useUserStore.getState().fetchUserByManagerId(currentUser.uuid);
+    } else {
+      fetchUsers();
+    }
+  }, [fetchUsers, currentUser, isManager]);
 
   useEffect(() => {
     fetchRoles();
@@ -35,22 +45,27 @@ export function UserManagement() {
       filtered = filtered.filter((u) => u.uuid !== currentUser.uuid);
     }
 
-    // Filter users based on current user's role
-    if (currentUser?.role === 'manager') {
-      filtered = filtered.filter((u) => 
-        u.department === currentUser.department && u.role !== 'admin'
-      );
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(user =>
-        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filterRole !== 'all') {
-      filtered = filtered.filter(user => user.role === filterRole);
+    if (isManager) {
+      if (searchTerm) {
+        filtered = filtered.filter(user =>
+          user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+      if (filterRole !== 'all') {
+        filtered = filtered.filter(user => user.role === filterRole);
+      }
+    } else {
+      // For manager, only apply search and filterRole
+      if (searchTerm) {
+        filtered = filtered.filter(user =>
+          user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+      if (filterRole !== 'all') {
+        filtered = filtered.filter(user => user.role === filterRole);
+      }
     }
 
     setFilteredUsers(filtered);
@@ -107,7 +122,7 @@ export function UserManagement() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           {currentUser?.role === 'manager' ? 'Team Members' : 'User Management'}
         </h1>
-        {currentUser?.role === 'admin' && (
+        <PermissionGuard requiredPermissions={[Permission.USER_CREATE]} noRedirect>
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -115,7 +130,7 @@ export function UserManagement() {
             <Plus className="h-4 w-4" />
             <span>Add User</span>
           </button>
-        )}
+        </PermissionGuard>
       </div>
 
       {/* Search and Filter (placeholder, implement as needed) */}
@@ -219,20 +234,24 @@ export function UserManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => setEditingUser(user)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        {currentUser?.role === 'admin' && user.uuid !== currentUser.uuid && (
+                        <PermissionGuard requiredPermissions={[Permission.USER_UPDATE]} noRedirect>
                           <button
-                            onClick={() => setDeletingUser(user)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            onClick={() => setEditingUser(user)}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Edit2 className="h-4 w-4" />
                           </button>
-                        )}
+                        </PermissionGuard>
+                        <PermissionGuard requiredPermissions={[Permission.USER_DELETE]} noRedirect>
+                          {user.uuid !== currentUser?.uuid && (
+                            <button
+                              onClick={() => setDeletingUser(user)}
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </PermissionGuard>
                       </div>
                     </td>
                   </tr>
@@ -282,19 +301,29 @@ export function CreateUserModal({ onClose, onSave, roles = [] }: {
   onSave: (user: any) => void;
   roles?: any[];
 }) {
+  const { managers, fetchManagers } = useUserStore();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
     role: 'user',
     department: '',
-    status: 'active'
+    status: 'active',
+    managerId: ''
   });
+
+  useEffect(() => {
+    fetchManagers();
+  }, [fetchManagers]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
   };
+
+  // Determine if selected role is 'user' by checking role name
+  const selectedRole = roles.find(r => (r.id || r._id) === formData.role);
+  const isUserRole = selectedRole?.name?.toLowerCase() === 'user';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -364,6 +393,28 @@ export function CreateUserModal({ onClose, onSave, roles = [] }: {
               )}
             </select>
           </div>
+
+          {/* Manager Select - Only show when role is 'user' */}
+          {isUserRole && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Manager
+              </label>
+              <select
+                value={formData.managerId}
+                onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                required
+              >
+                <option value="">Select a manager</option>
+                {managers.map((manager) => (
+                  <option key={manager.uuid} value={manager.uuid}>
+                    {manager.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
