@@ -4,8 +4,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { plainToInstance } from 'class-transformer';
+import { UseInterceptors } from '@nestjs/common';
+import { AuditInterceptor } from '../audit/audit.interceptor';
 
 @Controller('users')
+@UseInterceptors(AuditInterceptor)
 export class UsersController {
     private readonly logger = new Logger(UsersController.name);
 

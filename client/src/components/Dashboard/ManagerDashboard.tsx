@@ -1,6 +1,8 @@
 import { Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export function ManagerDashboard() {
+  const { user: currentUser } = useAuthStore();
   const stats = [
     {
       title: 'Team Members',
@@ -54,7 +56,7 @@ export function ManagerDashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manager Dashboard</h1>
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          Engineering Department
+          {currentUser?.department || 'General Department'}
         </div>
       </div>
 

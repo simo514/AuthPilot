@@ -1,9 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UsePipes, ValidationPipe, UseInterceptors } from '@nestjs/common';
+import { AuditInterceptor } from '../audit/audit.interceptor';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 
+@UseInterceptors(AuditInterceptor)
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {}

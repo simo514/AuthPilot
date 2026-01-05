@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore';
-
 import { useIsManager } from '../../hooks/useIsManager';
 import { useUserStore } from '../../store/useUserStore';
 import { User as UserType, Permission } from '../../types/auth.types';
