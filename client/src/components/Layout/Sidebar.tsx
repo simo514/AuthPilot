@@ -11,6 +11,8 @@ import {
   Sun,
   LogOut
 } from 'lucide-react';
+import { usePermissions } from '../../hooks/usePermissions';
+import { Permission } from '../../types/auth.types';
 
 interface SidebarProps {
   activeTab: string;
@@ -22,33 +24,26 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
+  const { hasPermission } = usePermissions();
 
-  const getMenuItems = () => {
-    const baseItems = [
-      { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
-      { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' }
-    ];
+  // Build menu items based on permissions
+  const baseItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
+    { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' }
+  ];
 
-    if (user?.role === 'admin') {
-      return [
-        ...baseItems,
-        { id: 'users', label: 'Users', icon: Users, path: '/users' },
-        { id: 'roles', label: 'Roles', icon: Shield, path: '/roles' },
-        { id: 'audit', label: 'Audit Logs', icon: FileText, path: '/audit' }
-      ];
-    }
+  // Permission checks
+  const canViewUsers = hasPermission(Permission.USER_LIST) || hasPermission(Permission.USER_READ);
+  const canViewRoles = hasPermission(Permission.ROLE_READ) || hasPermission(Permission.ROLE_LIST);
+  const canViewAudit = hasPermission(Permission.AUDIT_READ) || hasPermission(Permission.AUDIT_LIST);
 
-    if (user?.role === 'manager') {
-      return [
-        ...baseItems,
-        { id: 'users', label: 'Team Members', icon: Users, path: '/users' }
-      ];
-    }
-
-    return baseItems;
-  };
-
-  const menuItems = getMenuItems();
+  // Dynamically build menu
+  const menuItems = [
+    ...baseItems,
+    ...(canViewUsers ? [{ id: 'users', label: 'Users', icon: Users, path: '/users' }] : []),
+    ...(canViewRoles ? [{ id: 'roles', label: 'Roles', icon: Shield, path: '/roles' }] : []),
+    ...(canViewAudit ? [{ id: 'audit', label: 'Audit Logs', icon: FileText, path: '/audit' }] : []),
+  ];
   
   const handleLogout = () => {
     logout();

@@ -1,128 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Filter, Download, Search, User, Shield, Activity } from 'lucide-react';
-
-interface AuditLog {
-  id: string;
-  user: string;
-  action: string;
-  resource: string;
-  timestamp: string;
-  ipAddress: string;
-  userAgent: string;
-  status: 'success' | 'failed' | 'warning';
-  details?: string;
-}
+import { useState, useEffect, useCallback } from 'react';
+import { Calendar, Filter, Download, Search, User, Shield, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAuditStore, AuditLog } from '../../store/useAuditStore';
 
 export function AuditLogs() {
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [filteredLogs, setFilteredLogs] = useState<AuditLog[]>([]);
+  const { logs, total, page, totalPages, loading, error, fetchLogs } = useAuditStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterAction, setFilterAction] = useState('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  // Debounce search term
   useEffect(() => {
-    // Generate mock audit logs
-    const mockLogs: AuditLog[] = [
-      {
-        id: '1',
-        user: 'admin@example.com',
-        action: 'Login',
-        resource: 'Authentication',
-        timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        status: 'success'
-      },
-      {
-        id: '2',
-        user: 'manager@example.com',
-        action: 'User Created',
-        resource: 'User Management',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        ipAddress: '192.168.1.101',
-        userAgent: 'Mozilla/5.0 (macOS; Intel Mac OS X 10_15_7)',
-        status: 'success',
-        details: 'Created user: john.doe@example.com'
-      },
-      {
-        id: '3',
-        user: 'user@example.com',
-        action: 'Password Change',
-        resource: 'Profile',
-        timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-        ipAddress: '192.168.1.102',
-        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1)',
-        status: 'success'
-      },
-      {
-        id: '4',
-        user: 'unknown@example.com',
-        action: 'Login',
-        resource: 'Authentication',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-        ipAddress: '192.168.1.103',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        status: 'failed',
-        details: 'Invalid credentials'
-      },
-      {
-        id: '5',
-        user: 'admin@example.com',
-        action: 'Role Updated',
-        resource: 'Role Management',
-        timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        status: 'success',
-        details: 'Updated role: Manager'
-      },
-      {
-        id: '6',
-        user: 'manager@example.com',
-        action: 'Data Export',
-        resource: 'User Management',
-        timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-        ipAddress: '192.168.1.101',
-        userAgent: 'Mozilla/5.0 (macOS; Intel Mac OS X 10_15_7)',
-        status: 'warning',
-        details: 'Exported user data (500 records)'
-      }
-    ];
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset to first page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-    setLogs(mockLogs);
-    setFilteredLogs(mockLogs);
-  }, []);
-
+  // Fetch logs when page, items per page, or search changes
   useEffect(() => {
-    let filtered = logs;
+    fetchLogs(currentPage, itemsPerPage, debouncedSearch);
+  }, [currentPage, itemsPerPage, debouncedSearch, fetchLogs]);
 
-    if (searchTerm) {
-      filtered = filtered.filter(log =>
-        log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.resource.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(log => log.status === filterStatus);
-    }
-
-    if (filterAction !== 'all') {
-      filtered = filtered.filter(log => log.action === filterAction);
-    }
-
-    if (dateRange.start) {
-      filtered = filtered.filter(log => new Date(log.timestamp) >= new Date(dateRange.start));
-    }
-
-    if (dateRange.end) {
-      filtered = filtered.filter(log => new Date(log.timestamp) <= new Date(dateRange.end));
-    }
-
-    setFilteredLogs(filtered);
-  }, [logs, searchTerm, filterStatus, filterAction, dateRange]);
+  // Client-side filtering for status, action, and date range
+  const filteredLogs = logs.filter(log => {
+    if (filterStatus !== 'all' && log.status !== filterStatus) return false;
+    if (filterAction !== 'all' && log.action !== filterAction) return false;
+    if (dateRange.start && new Date(log.createdAt) < new Date(dateRange.start)) return false;
+    if (dateRange.end && new Date(log.createdAt) > new Date(dateRange.end)) return false;
+    return true;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -141,14 +52,13 @@ export function AuditLogs() {
 
   const handleExport = () => {
     const csvContent = [
-      ['Timestamp', 'User', 'Action', 'Resource', 'Status', 'IP Address', 'Details'],
+      ['Timestamp', 'User', 'Action', 'Status', 'IP Address', 'Details'],
       ...filteredLogs.map(log => [
-        new Date(log.timestamp).toLocaleString(),
-        log.user,
+        new Date(log.createdAt).toLocaleString(),
+        log.user?.fullName || log.user?.uuid || 'anonymous',
         log.action,
-        log.resource,
-        log.status,
-        log.ipAddress,
+        log.status || 'success',
+        log.ipAddress || '',
         log.details || ''
       ])
     ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
@@ -160,6 +70,12 @@ export function AuditLogs() {
     a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
   };
 
   const uniqueActions = [...new Set(logs.map(log => log.action))];
@@ -184,7 +100,7 @@ export function AuditLogs() {
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search logs..."
+              placeholder="Search (user, action, details)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -241,7 +157,23 @@ export function AuditLogs() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading audit logs...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 p-4">
+          <p className="text-red-800 dark:text-red-400">Error: {error}</p>
+        </div>
+      )}
+
       {/* Logs Table */}
+      {!loading && !error && (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -273,21 +205,26 @@ export function AuditLogs() {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredLogs.map((log) => {
                 const ActionIcon = getActionIcon(log.action);
+                const userName = log.user?.fullName || log.user?.uuid || 'anonymous';
+                const resource = log.action.includes('Login') ? 'Authentication' :
+                                log.action.includes('Registration') ? 'Authentication' : 
+                                log.action.includes('User') ? 'User Management' : 
+                                log.action.includes('Role') ? 'Role Management' : 'System';
                 return (
-                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <tr key={log.uuid} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {new Date(log.timestamp).toLocaleString()}
+                      {new Date(log.createdAt).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                           <span className="text-white text-xs font-semibold">
-                            {log.user.split('@')[0][0].toUpperCase()}
+                            {userName[0].toUpperCase()}
                           </span>
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {log.user}
+                            {userName}
                           </div>
                         </div>
                       </div>
@@ -299,15 +236,15 @@ export function AuditLogs() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {log.resource}
+                      {resource}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(log.status)}`}>
-                        {log.status}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(log.status || 'success')}`}>
+                        {log.status || 'success'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {log.ipAddress}
+                      {log.ipAddress || 'Unknown'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
                       {log.details || '-'}
@@ -318,9 +255,79 @@ export function AuditLogs() {
             </tbody>
           </table>
         </div>
-      </div>
 
-      {filteredLogs.length === 0 && (
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              Showing {filteredLogs.length > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0} to {Math.min(currentPage * itemsPerPage, total)} of {total} results
+            </span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="ml-4 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm dark:bg-gray-700 dark:text-white"
+            >
+              <option value={5}>5 per page</option>
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+            </select>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            
+            <div className="flex items-center space-x-1">
+              {[...Array(Math.min(5, totalPages))].map((_, idx) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = idx + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = idx + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + idx;
+                } else {
+                  pageNum = currentPage - 2 + idx;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-1 rounded-lg text-sm ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {!loading && !error && filteredLogs.length === 0 && (
         <div className="text-center py-12">
           <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 dark:text-gray-400">No audit logs found matching your criteria.</p>

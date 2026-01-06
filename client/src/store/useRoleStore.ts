@@ -4,6 +4,7 @@ import { Role, CreateRoleDto, UpdateRoleDto } from '../types/role.types';
 import { RequestStatus } from '../types/api.types';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import { useAuthStore } from './useAuthStore';
 
 // Helper to extract error message from API error
 function extractApiErrorMessage(error: any, fallback = 'An error occurred.') {
@@ -130,7 +131,26 @@ export const useRoleStore = create<RoleState>()(
               status: RequestStatus.SUCCESS,
               error: null,
             }));
-            toast.success('Role permissions updated successfully');
+            
+            // Refresh current user if they have this role
+            const currentUser = useAuthStore.getState().user;
+            let needsRefresh = false;
+            
+            if (currentUser?.roleId && typeof currentUser.roleId === 'object' && 'name' in currentUser.roleId) {
+              const userRoleId = currentUser.roleId;
+              if (response.data.id === id || response.data.name === userRoleId.name) {
+                needsRefresh = true;
+                // Refresh user data
+                await useAuthStore.getState().refreshCurrentUser();
+                // Wait a bit for state to propagate
+                await new Promise(resolve => setTimeout(resolve, 100));
+                toast.success('Role permissions updated. Your permissions have been refreshed.');
+              }
+            }
+            
+            if (!needsRefresh) {
+              toast.success('Role permissions updated successfully');
+            }
         } catch (error) {
           set({
             status: RequestStatus.ERROR,

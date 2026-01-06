@@ -10,10 +10,14 @@ import { Settings } from './components/Settings/Settings';
 import { RoleManagement } from './components/Roles/RoleManagement';
 import { AuditLogs } from './components/Audit/AuditLogs';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
+import { RoleGuard } from './components/Auth/RoleGuard';
+import { PermissionGuard } from './components/Auth/PermissionGuard';
 import { AuthPage } from './components/Auth/AuthPage';
 import { useAuthStore } from './store/useAuthStore';
 import { useThemeStore } from './store/useThemeStore';
+import { UserRole, Permission } from './types/auth.types';
 import { useEffect } from 'react';
+import Unauthorized from './components/Auth/Unauthorized';
 
 function App() {
   const { theme } = useThemeStore();
@@ -54,28 +58,92 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardRouter />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="roles" element={<RoleManagement />} />
-          <Route path="audit" element={<AuditLogs />} />
+          <Route index element={<DashboardRedirect />} />
+          
+          {/* Role-based Dashboards */}
+          <Route 
+            path="dashboard/admin" 
+            element={
+              <RoleGuard allowedRoles={[UserRole.ADMIN]}>
+                <AdminDashboard />
+              </RoleGuard>
+            } 
+          />
+          <Route 
+            path="dashboard/manager" 
+            element={
+              <RoleGuard allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+                <ManagerDashboard />
+              </RoleGuard>
+            } 
+          />
+          <Route 
+            path="dashboard/user" 
+            element={
+              <RoleGuard allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.USER]}>
+                <UserDashboard />
+              </RoleGuard>
+            } 
+          />
+          
+          <Route 
+            path="users" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.USER_LIST, Permission.USER_READ]}
+                requireAll={false}
+              >
+                <UserManagement />
+              </PermissionGuard>
+            } 
+          />
+          <Route 
+            path="roles" 
+            element={
+              <RoleGuard
+                allowedRoles={[UserRole.ADMIN]}
+              >
+                <RoleManagement />
+              </RoleGuard>
+            }
+          />
+          <Route 
+            path="audit" 
+            element={
+              <PermissionGuard requiredPermissions={[Permission.AUDIT_READ]}>
+                <AuditLogs />
+              </PermissionGuard>
+            } 
+          />
           <Route path="settings" element={<Settings />} />
         </Route>
         
+        {/* Unauthorized Route */}
+        <Route path="/unauthorized" element={<Unauthorized />} />
         {/* Catch all */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<DashboardRedirect />} />
       </Routes>
     </ThemeProvider>
   );
 }
 
-// Dashboard router based on user role
-function DashboardRouter() {
+// Redirect to appropriate dashboard based on user role
+function DashboardRedirect() {
   const { user } = useAuthStore();
   
-  if (user?.role === 'admin') return <AdminDashboard />;
-  if (user?.role === 'manager') return <ManagerDashboard />;
-  return <UserDashboard />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  switch (user.role) {
+    case UserRole.ADMIN:
+      return <Navigate to="/dashboard/admin" replace />;
+    case UserRole.MANAGER:
+      return <Navigate to="/dashboard/manager" replace />;
+    case UserRole.USER:
+    default:
+      return <Navigate to="/dashboard/user" replace />;
+  }
 }
 
 export default App;

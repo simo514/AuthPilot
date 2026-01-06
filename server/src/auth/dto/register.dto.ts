@@ -15,10 +15,6 @@ export class RegisterDto {
     @IsNotEmpty()
     password: string;
 
-    @IsString()
-    @IsOptional()
-    roleId: string;
-
     @IsOptional()
     @IsEnum(UserDepartment)
     department?: UserDepartment;

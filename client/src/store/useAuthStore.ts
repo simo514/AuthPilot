@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { User, LoginCredentials, RegisterData, LoginResponse } from '../types/auth.types';
 import { api, handleApiError } from '../lib/api';
+import toast from 'react-hot-toast';
 
 // ============================================
 // AUTH STORE STATE
@@ -22,6 +23,9 @@ interface AuthState {
   logout: () => void;
   refreshAccessToken: () => Promise<string>;
   clearError: () => void;
+  resetPassword: (email: string, currentPassword: string, newPassword: string) => Promise<void>;
+  updateCurrentUser: (updatedUser: Partial<User>) => void;
+  refreshCurrentUser: () => Promise<void>;
 }
 
 // ============================================
@@ -101,6 +105,23 @@ export const useAuthStore = create<AuthState>()(
           });
         },
 
+        resetPassword: async (email: string, currentPassword: string, newPassword: string) => {
+          set({ isLoading: true, error: null });
+          try {
+            await api.patch(`/users/password`, { email,currentPassword, newPassword });
+            set({ isLoading: false });
+            toast.success('Password updated successfully');
+          } catch (error) {
+            const errorMessage = handleApiError(error);
+            set({
+              isLoading: false,
+              error: errorMessage,
+            });
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
+          }
+        },
+
         refreshAccessToken: async (): Promise<string> => {
           const currentRefreshToken = get().refreshToken;
 
@@ -137,7 +158,30 @@ export const useAuthStore = create<AuthState>()(
         clearError: () => {
           set({ error: null });
         },
+
+        updateCurrentUser: (updatedUser) => {
+          set((state) => ({
+            user: state.user ? { ...state.user, ...updatedUser } : null,
+          }));
+        },
+
+        refreshCurrentUser: async () => {
+          const currentUser = get().user;
+          if (!currentUser?.uuid) return;
+
+          console.log('Refreshing current user data...');
+          try {
+            const response = await api.get<User>(`/users/${currentUser.uuid}`);
+            console.log('Fresh user data received:', response.data);
+            set({ user: response.data });
+            console.log('User state updated');
+          } catch (error) {
+            console.error('Failed to refresh user data:', error);
+          }
+        },
       }),
+
+      
       {
         name: 'auth-storage',
         partialize: (state) => ({

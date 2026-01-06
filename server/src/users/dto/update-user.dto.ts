@@ -20,6 +20,10 @@ export class UpdateUserDto {
 	department?: UserDepartment;
 
 	@IsOptional()
+	@IsString()
+	managerId?: string;	
+
+	@IsOptional()
 	@IsEnum(UserStatus)
 	status?: UserStatus;
 }

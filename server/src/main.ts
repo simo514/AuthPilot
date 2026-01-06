@@ -1,11 +1,31 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { GlobalExceptionFilter } from './filters/http-exception.filter';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const logger = new Logger('server');
   const app = await NestFactory.create(AppModule);
+  
+  // Security: Helmet
+  app.use(helmet());
+  
+  // Global Exception Filter
+  app.useGlobalFilters(new GlobalExceptionFilter());
+  
+  // Global Validation Pipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
   
   // Enable CORS
   app.enableCors({

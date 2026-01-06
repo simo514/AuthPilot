@@ -65,6 +65,14 @@ export class User {
 
   @Prop({
     type: String,
+    default: null,
+    index: true,
+    required: false,
+  })
+  managerId: string;
+
+  @Prop({
+    type: String,
     enum: Object.values(UserStatus),
     default: UserStatus.ACTIVE,
     index: true,
