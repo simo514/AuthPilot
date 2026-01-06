@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, UseGuards, Request, Query } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { AuditResponseDto } from './dto/audit-response.dto';
 import { plainToInstance } from 'class-transformer';
@@ -15,17 +15,35 @@ export class AuditController {
 
    @Get()
    @HttpCode(HttpStatus.OK)
-    async getAllAudits(@Request() req): Promise<AuditResponseDto[]> {
+    async getAllAudits(
+        @Request() req,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string
+    ) {
         const currentUser = req.user;
-        let audits: any[];
+        const pageNum = parseInt(page || '1', 10);
+        const limitNum = parseInt(limit || '10', 10);
+
+        let result: any;
 
         // Check if user is a manager (role is stored as string in user schema)
         if (currentUser.role === 'manager') {
-            audits = await this.auditService.getAuditsByManagerId(currentUser.uuid);
+            result = await this.auditService.getAuditsByManagerId(
+                currentUser.uuid,
+                pageNum,
+                limitNum,
+                search
+            );
         } else {
-            audits = await this.auditService.getAllAudits();
+            result = await this.auditService.getAllAudits(pageNum, limitNum, search);
         }
 
-        return plainToInstance(AuditResponseDto, audits, { excludeExtraneousValues: true });
+        return {
+            audits: plainToInstance(AuditResponseDto, result.audits, { excludeExtraneousValues: true }),
+            total: result.total,
+            page: result.page,
+            totalPages: result.totalPages,
+        };
     }
 }

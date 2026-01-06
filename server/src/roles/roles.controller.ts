@@ -6,13 +6,16 @@ import { plainToInstance } from 'class-transformer';
 import { Permission } from './enums/permission.enum';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { AuthGuard } from '@nestjs/passport';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
 @Controller('roles')
+@UseGuards(AuthGuard('jwt'), PermissionsGuard)
 export class RolesController {
     constructor(private readonly rolesService: RolesService) {}
 
     @Post()
-    @UseGuards(AuthGuard('jwt'))
+    @RequirePermissions(Permission.ROLE_CREATE)
     @UseInterceptors(AuditInterceptor)
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -22,6 +25,7 @@ export class RolesController {
     }
 
     @Get()
+    @RequirePermissions(Permission.ROLE_LIST)
     @HttpCode(HttpStatus.OK)
     async getRoles(): Promise<RoleResponseDto[]> {
         const roles = await this.rolesService.getRoles();
@@ -29,6 +33,7 @@ export class RolesController {
     }
 
     @Patch(':roleId/permissions')
+    @RequirePermissions(Permission.ROLE_UPDATE)
     @HttpCode(HttpStatus.OK)
     @UsePipes(new ValidationPipe({ transform: true }))
     async updateRolePermissions(
@@ -40,6 +45,7 @@ export class RolesController {
     }
 
     @Patch(':roleId/toggle-status')
+    @RequirePermissions(Permission.ROLE_UPDATE)
     @HttpCode(HttpStatus.OK)
     @UsePipes(new ValidationPipe({ transform: true }))
     async toggleRoleStatus(
@@ -51,7 +57,7 @@ export class RolesController {
     }
 
     @Delete(':roleId')
-    @UseGuards(AuthGuard('jwt'))
+    @RequirePermissions(Permission.ROLE_DELETE)
     @UseInterceptors(AuditInterceptor)
     @HttpCode(HttpStatus.NO_CONTENT)
     async deleteRole(@Param('roleId') roleId: string): Promise<void> {
@@ -59,6 +65,7 @@ export class RolesController {
     }
 
     @Get('permissions')
+    @RequirePermissions(Permission.ROLE_READ)
     @HttpCode(HttpStatus.OK)
     async getAllPermissions(): Promise<string[]> {
         return this.rolesService.getAllPermissions();

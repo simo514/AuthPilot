@@ -14,13 +14,11 @@ export class AuthService {
     ) {}
 
     async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
-        const { fullName, email, password, roleId, department, managerId } = registerDto;
+        const { fullName, email, password, department } = registerDto;
         
-        // Create user
-        await this.usersService.createUser({ fullName, email, password, roleId, department, managerId});
+        await this.usersService.createUser({ fullName, email, password, department });
         this.logger.log(`User registered successfully: ${email}`);
 
-        // Get created user without password
         const user = await this.usersService.findByEmailWithPassword(email);
         if (!user) {
             throw new UnauthorizedException('Failed to retrieve created user');

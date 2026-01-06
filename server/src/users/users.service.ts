@@ -19,13 +19,19 @@ export class UsersService {
   ) {}
 
   async createUser(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    const {fullName, email, password, roleId, department, managerId} = createUserDto;
+    const {fullName, email, password, roleId, role, department, managerId} = createUserDto;
     
-    let finalRoleId = roleId;
+    // Handle case where role ID is sent in "role" field instead of "roleId"
+    // If role looks like a MongoDB ObjectId (24 hex chars), treat it as roleId
+    const isRoleAnObjectId = role && /^[0-9a-fA-F]{24}$/.test(role);
+    let finalRoleId = roleId || (isRoleAnObjectId ? role : null);
+    
+    this.logger.debug(`createUser called with roleId: ${roleId}, role: ${role}, finalRoleId: ${finalRoleId}`);
+    
     let roleName = 'user';
 
     // If no roleId provided, find the default 'user' role
-    if (!roleId) {
+    if (!finalRoleId) {
       const defaultRole = await this.roleModel.findOne({ name: /^user$/i }).exec();
       if (!defaultRole) {
         throw new InternalServerErrorException('Default user role not found in database');
@@ -34,7 +40,7 @@ export class UsersService {
       roleName = defaultRole.name.toLowerCase();
     } else {
       // Validate roleId exists
-      const roleDoc = await this.roleModel.findById(roleId).exec();
+      const roleDoc = await this.roleModel.findById(finalRoleId).exec();
       if (!roleDoc) {
         throw new BadRequestException('Invalid roleId: Role does not exist');
       }
@@ -58,7 +64,15 @@ export class UsersService {
     });
     try {
       await createdUser.save();
-      this.logger.log(`User created successfully: ${email}`);
+      this.logger.log(`User created successfully: ${email} with role: ${roleName}`);
+      
+      // Fetch the user with populated role to return complete data
+      const userWithRole = await this.userModel
+        .findById(createdUser._id)
+        .populate('roleId')
+        .exec();
+      
+      return plainToInstance(UserResponseDto, userWithRole, { excludeExtraneousValues: true });
     } catch (error) {
       this.logger.error(`Failed to create user: ${email}`, error.stack);
       if (error.code === 11000) {
@@ -66,16 +80,20 @@ export class UsersService {
       }
       throw new InternalServerErrorException('Failed to create user');
     }
-    return plainToInstance(UserResponseDto, createdUser, { excludeExtraneousValues: true });
   }
 
   async updateUser (uuid: string, updateData: UpdateUserDto): Promise<Omit<User, 'password'> | null> {
     this.logger.log(`Updating user: ${uuid}`);
     const dataToUpdate = { ...updateData } as any;
 
-    // Never allow password updates through this endpoint
+    // Security: Never allow password updates through this endpoint
     if (dataToUpdate.password) {
       delete dataToUpdate.password;
+    }
+
+    // Security: Prevent direct role manipulation - role is derived from roleId
+    if (dataToUpdate.role) {
+      delete dataToUpdate.role;
     }
 
     // Validate roleId if provided and sync role field
@@ -115,7 +133,14 @@ export class UsersService {
     }
   }
 
-  async getAllUsers(department?: string, role?: string, status?: string): Promise<Omit<User, 'password'>[]> {
+  async getAllUsers(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    department?: string,
+    role?: string,
+    status?: string
+  ): Promise<{ users: Omit<User, 'password'>[]; total: number; page: number; totalPages: number }> {
     const filter: any = {};
     
     if (department) {
@@ -129,15 +154,32 @@ export class UsersService {
     if(status) {
       filter.status = status;
     }
+
+    if (search) {
+      filter.$or = [
+        { fullName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
     
     try {
+      const total = await this.userModel.countDocuments(filter);
       const users = await this.userModel
         .find(filter)
         .select('-password')
         .populate('roleId', 'name permissions isActive level')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
         .lean()
         .exec();
-      return users;
+      
+      return {
+        users,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      };
     } catch (error) {
       this.logger.error('Failed to fetch users', error.stack);
       throw new InternalServerErrorException('Failed to fetch users');
@@ -202,20 +244,21 @@ export class UsersService {
     }
   }
 
-  async getUsersbyManager(managerId: string): Promise<Omit<User, 'password'>[]> {
+  // For managers: Get their own team members using their UUID
+  async getMyTeamMembers(managerUuid: string): Promise<Omit<User, 'password'>[]> {
     try {
       const users = await this.userModel
-        .find({ managerId })
+        .find({ managerId: managerUuid })
         .select('-password')
         .populate('roleId', 'name permissions isActive level -_id')
         .lean()
         .exec();
       
-      this.logger.log(`Retrieved ${users.length} users for manager: ${managerId}`);
+      this.logger.log(`Retrieved ${users.length} team members for manager: ${managerUuid}`);
       return users;
     } catch (error) {
-      this.logger.error(`Failed to fetch users for manager: ${managerId}`, error.stack);
-      throw new InternalServerErrorException('Failed to fetch users for manager');
+      this.logger.error(`Failed to fetch team members for manager: ${managerUuid}`, error.stack);
+      throw new InternalServerErrorException('Failed to fetch team members');
     }
   }
 

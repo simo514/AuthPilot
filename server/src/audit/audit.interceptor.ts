@@ -39,6 +39,49 @@ export class AuditInterceptor implements NestInterceptor {
     return `${method} ${cleanUrl}`;
   }
 
+  private sanitizeResponse(response: any): any {
+    if (!response) return response;
+
+    // Create a copy to avoid mutating original
+    const sanitized = JSON.parse(JSON.stringify(response));
+
+    // Remove sensitive fields
+    const sensitiveFields = [
+      'password',
+      'accessToken',
+      'refreshToken',
+      'token',
+      'secret',
+      'apiKey',
+    ];
+
+    const removeSensitiveData = (obj: any) => {
+      if (typeof obj !== 'object' || obj === null) return;
+
+      for (const key in obj) {
+        if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
+          delete obj[key];
+        } else if (typeof obj[key] === 'object') {
+          removeSensitiveData(obj[key]);
+        }
+      }
+    };
+
+    removeSensitiveData(sanitized);
+
+    // Limit response size to prevent huge logs (max 5000 chars)
+    const responseStr = JSON.stringify(sanitized);
+    if (responseStr.length > 5000) {
+      return { 
+        _truncated: true, 
+        _size: responseStr.length,
+        _preview: responseStr.substring(0, 5000) + '...'
+      };
+    }
+
+    return sanitized;
+  }
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const ipAddress = 
@@ -69,10 +112,13 @@ export class AuditInterceptor implements NestInterceptor {
             }
           }
           
+          // Sanitize response to remove sensitive data
+          const sanitizedResponse = this.sanitizeResponse(response);
+          
           this.auditService.createAudit(
             actionDescription,
             `${actionDescription} completed successfully`,
-            response,
+            sanitizedResponse,
             ipAddress,
             'success',
             userObject

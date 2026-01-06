@@ -1,57 +1,39 @@
-import { useState, useEffect } from 'react';
-import { Calendar, Filter, Download, Search, User, Shield, Activity } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Calendar, Filter, Download, Search, User, Shield, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuditStore, AuditLog } from '../../store/useAuditStore';
 
 export function AuditLogs() {
-  const { logs, loading, error, fetchLogs } = useAuditStore();
-  const [filteredLogs, setFilteredLogs] = useState<AuditLog[]>([]);
+  const { logs, total, page, totalPages, loading, error, fetchLogs } = useAuditStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterAction, setFilterAction] = useState('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  // Debounce search term
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset to first page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
+  // Fetch logs when page, items per page, or search changes
   useEffect(() => {
-    const sortedLogs = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    setFilteredLogs(sortedLogs);
-  }, [logs]);
+    fetchLogs(currentPage, itemsPerPage, debouncedSearch);
+  }, [currentPage, itemsPerPage, debouncedSearch, fetchLogs]);
 
-  useEffect(() => {
-    let filtered = logs;
-
-    if (searchTerm) {
-      filtered = filtered.filter(log =>
-        (log.user?.uuid?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.user?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.details?.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(log => log.status === filterStatus);
-    }
-
-    if (filterAction !== 'all') {
-      filtered = filtered.filter(log => log.action === filterAction);
-    }
-
-    if (dateRange.start) {
-      filtered = filtered.filter(log => new Date(log.createdAt) >= new Date(dateRange.start));
-    }
-
-    if (dateRange.end) {
-      filtered = filtered.filter(log => new Date(log.createdAt) <= new Date(dateRange.end));
-    }
-
-    // Sort filtered logs from latest to oldest
-    filtered = [...filtered].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    setFilteredLogs(filtered);
-  }, [logs, searchTerm, filterStatus, filterAction, dateRange]);
+  // Client-side filtering for status, action, and date range
+  const filteredLogs = logs.filter(log => {
+    if (filterStatus !== 'all' && log.status !== filterStatus) return false;
+    if (filterAction !== 'all' && log.action !== filterAction) return false;
+    if (dateRange.start && new Date(log.createdAt) < new Date(dateRange.start)) return false;
+    if (dateRange.end && new Date(log.createdAt) > new Date(dateRange.end)) return false;
+    return true;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -90,6 +72,12 @@ export function AuditLogs() {
     URL.revokeObjectURL(url);
   };
 
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
   const uniqueActions = [...new Set(logs.map(log => log.action))];
 
   return (
@@ -112,7 +100,7 @@ export function AuditLogs() {
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search logs..."
+              placeholder="Search (user, action, details)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -266,6 +254,75 @@ export function AuditLogs() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              Showing {filteredLogs.length > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0} to {Math.min(currentPage * itemsPerPage, total)} of {total} results
+            </span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="ml-4 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm dark:bg-gray-700 dark:text-white"
+            >
+              <option value={5}>5 per page</option>
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+            </select>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            
+            <div className="flex items-center space-x-1">
+              {[...Array(Math.min(5, totalPages))].map((_, idx) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = idx + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = idx + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + idx;
+                } else {
+                  pageNum = currentPage - 2 + idx;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-1 rounded-lg text-sm ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
       )}
