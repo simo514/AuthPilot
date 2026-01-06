@@ -1,15 +1,19 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseInterceptors, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { RoleResponseDto } from './dto/role-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { Permission } from './enums/permission.enum';
+import { AuditInterceptor } from '../audit/audit.interceptor';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('roles')
 export class RolesController {
     constructor(private readonly rolesService: RolesService) {}
 
     @Post()
+    @UseGuards(AuthGuard('jwt'))
+    @UseInterceptors(AuditInterceptor)
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
     async createRole(@Body() createRoleDto: CreateRoleDto): Promise<RoleResponseDto> {
@@ -47,10 +51,12 @@ export class RolesController {
     }
 
     @Delete(':roleId')
+    @UseGuards(AuthGuard('jwt'))
+    @UseInterceptors(AuditInterceptor)
     @HttpCode(HttpStatus.NO_CONTENT)
     async deleteRole(@Param('roleId') roleId: string): Promise<void> {
         return this.rolesService.deleteRole(roleId);
-    }   
+    }
 
     @Get('permissions')
     @HttpCode(HttpStatus.OK)

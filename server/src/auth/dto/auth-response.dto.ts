@@ -39,6 +39,10 @@ export class UserResponseDto {
     status: string;
 
     @Expose()
+    managerId: string;
+
+
+    @Expose()
     lastLoginAt: Date;
 
     @Expose()

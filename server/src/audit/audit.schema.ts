@@ -14,11 +14,10 @@ export class Audit {
     uuid: string;
 
     @Prop({
-        type: String,
+        type: MongooseSchema.Types.Mixed,
         required: false,
-        index: true,
     })
-    userUuid?: string;
+    user?: Record<string, any>;
 
     @Prop({
         type: String,
@@ -26,11 +25,26 @@ export class Audit {
     })
     action: string;
 
+
+    @Prop({
+        type: String,
+        required: false,
+        enum: ['success', 'failed'],
+        default: 'success',
+    })
+    status?: 'success' | 'failed';
+
+    @Prop({
+        type: String,
+        required: false,
+    })
+    details?: string;
+
     @Prop({
         type: MongooseSchema.Types.Mixed,
         required: false,
     })
-    details: Record<string, any>;
+    response?: Record<string, any>;
 
     @Prop({
         type: String,

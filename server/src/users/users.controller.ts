@@ -1,4 +1,4 @@
-import { Body, Controller, Patch, Post, UsePipes, ValidationPipe, Param, NotFoundException, Get, Query, Delete, Logger, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
+import { Body, Controller, Patch, Post, UsePipes, ValidationPipe, Param, NotFoundException, Get, Query, Delete, Logger, HttpCode, HttpStatus, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -6,9 +6,10 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { UseInterceptors } from '@nestjs/common';
 import { AuditInterceptor } from '../audit/audit.interceptor';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('users')
-@UseInterceptors(AuditInterceptor)
+@UseGuards(AuthGuard('jwt'))
 export class UsersController {
     private readonly logger = new Logger(UsersController.name);
 
@@ -16,6 +17,7 @@ export class UsersController {
 
     @Post()
     @HttpCode(HttpStatus.CREATED)
+    @UseInterceptors(AuditInterceptor)
     @UsePipes(new ValidationPipe({ transform: true }))
     async createUser(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
        const user = await this.usersService.createUser(createUserDto);
@@ -96,6 +98,7 @@ export class UsersController {
     }
 
     @Delete(':uuid')
+    @UseInterceptors(AuditInterceptor)
     @HttpCode(HttpStatus.OK)
     async deleteUser(@Param('uuid') uuid: string): Promise<{ message: string }> {
         this.logger.log(`DELETE /users/${uuid} - Deleting user`);

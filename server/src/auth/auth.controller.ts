@@ -5,12 +5,12 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 
-@UseInterceptors(AuditInterceptor)
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
 
     @Post('register')
+    @UseInterceptors(AuditInterceptor)
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
     async register(@Body() registerDto: RegisterDto) {
@@ -18,6 +18,7 @@ export class AuthController {
     }
 
     @Post('login')
+    @UseInterceptors(AuditInterceptor)
     @HttpCode(HttpStatus.OK)
     @UsePipes(new ValidationPipe({ transform: true }))
     async login(@Body() loginDto: LoginDto) {

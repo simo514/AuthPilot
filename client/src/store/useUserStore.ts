@@ -117,13 +117,14 @@ export const useUserStore = create<UserState>()(
             status: RequestStatus.SUCCESS,
             error: null,
           }));
+          toast.success('User updated successfully');
         } catch (error: any) {
           const errorMsg = extractApiErrorMessage(error, 'Failed to update user.');
           set({
             status: RequestStatus.ERROR,
             error: errorMsg,
           });
-          throw new Error(errorMsg);
+          toast.error(errorMsg);          
         }
       },
 

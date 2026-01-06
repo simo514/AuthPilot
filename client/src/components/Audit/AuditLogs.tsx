@@ -1,20 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Filter, Download, Search, User, Shield, Activity } from 'lucide-react';
-
-interface AuditLog {
-  id: string;
-  user: string;
-  action: string;
-  resource: string;
-  timestamp: string;
-  ipAddress: string;
-  userAgent: string;
-  status: 'success' | 'failed' | 'warning';
-  details?: string;
-}
+import { useAuditStore, AuditLog } from '../../store/useAuditStore';
 
 export function AuditLogs() {
-  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const { logs, loading, error, fetchLogs } = useAuditStore();
   const [filteredLogs, setFilteredLogs] = useState<AuditLog[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -22,86 +11,23 @@ export function AuditLogs() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
   useEffect(() => {
-    // Generate mock audit logs
-    const mockLogs: AuditLog[] = [
-      {
-        id: '1',
-        user: 'admin@example.com',
-        action: 'Login',
-        resource: 'Authentication',
-        timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        status: 'success'
-      },
-      {
-        id: '2',
-        user: 'manager@example.com',
-        action: 'User Created',
-        resource: 'User Management',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        ipAddress: '192.168.1.101',
-        userAgent: 'Mozilla/5.0 (macOS; Intel Mac OS X 10_15_7)',
-        status: 'success',
-        details: 'Created user: john.doe@example.com'
-      },
-      {
-        id: '3',
-        user: 'user@example.com',
-        action: 'Password Change',
-        resource: 'Profile',
-        timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-        ipAddress: '192.168.1.102',
-        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1)',
-        status: 'success'
-      },
-      {
-        id: '4',
-        user: 'unknown@example.com',
-        action: 'Login',
-        resource: 'Authentication',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-        ipAddress: '192.168.1.103',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        status: 'failed',
-        details: 'Invalid credentials'
-      },
-      {
-        id: '5',
-        user: 'admin@example.com',
-        action: 'Role Updated',
-        resource: 'Role Management',
-        timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        status: 'success',
-        details: 'Updated role: Manager'
-      },
-      {
-        id: '6',
-        user: 'manager@example.com',
-        action: 'Data Export',
-        resource: 'User Management',
-        timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-        ipAddress: '192.168.1.101',
-        userAgent: 'Mozilla/5.0 (macOS; Intel Mac OS X 10_15_7)',
-        status: 'warning',
-        details: 'Exported user data (500 records)'
-      }
-    ];
+    fetchLogs();
+  }, [fetchLogs]);
 
-    setLogs(mockLogs);
-    setFilteredLogs(mockLogs);
-  }, []);
+  useEffect(() => {
+    const sortedLogs = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setFilteredLogs(sortedLogs);
+  }, [logs]);
 
   useEffect(() => {
     let filtered = logs;
 
     if (searchTerm) {
       filtered = filtered.filter(log =>
-        log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (log.user?.uuid?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.user?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.resource.toLowerCase().includes(searchTerm.toLowerCase())
+        log.details?.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -114,12 +40,15 @@ export function AuditLogs() {
     }
 
     if (dateRange.start) {
-      filtered = filtered.filter(log => new Date(log.timestamp) >= new Date(dateRange.start));
+      filtered = filtered.filter(log => new Date(log.createdAt) >= new Date(dateRange.start));
     }
 
     if (dateRange.end) {
-      filtered = filtered.filter(log => new Date(log.timestamp) <= new Date(dateRange.end));
+      filtered = filtered.filter(log => new Date(log.createdAt) <= new Date(dateRange.end));
     }
+
+    // Sort filtered logs from latest to oldest
+    filtered = [...filtered].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     setFilteredLogs(filtered);
   }, [logs, searchTerm, filterStatus, filterAction, dateRange]);
@@ -141,14 +70,13 @@ export function AuditLogs() {
 
   const handleExport = () => {
     const csvContent = [
-      ['Timestamp', 'User', 'Action', 'Resource', 'Status', 'IP Address', 'Details'],
+      ['Timestamp', 'User', 'Action', 'Status', 'IP Address', 'Details'],
       ...filteredLogs.map(log => [
-        new Date(log.timestamp).toLocaleString(),
-        log.user,
+        new Date(log.createdAt).toLocaleString(),
+        log.user?.fullName || log.user?.uuid || 'anonymous',
         log.action,
-        log.resource,
-        log.status,
-        log.ipAddress,
+        log.status || 'success',
+        log.ipAddress || '',
         log.details || ''
       ])
     ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
@@ -241,7 +169,23 @@ export function AuditLogs() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading audit logs...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 p-4">
+          <p className="text-red-800 dark:text-red-400">Error: {error}</p>
+        </div>
+      )}
+
       {/* Logs Table */}
+      {!loading && !error && (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -273,21 +217,26 @@ export function AuditLogs() {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredLogs.map((log) => {
                 const ActionIcon = getActionIcon(log.action);
+                const userName = log.user?.fullName || log.user?.uuid || 'anonymous';
+                const resource = log.action.includes('Login') ? 'Authentication' :
+                                log.action.includes('Registration') ? 'Authentication' : 
+                                log.action.includes('User') ? 'User Management' : 
+                                log.action.includes('Role') ? 'Role Management' : 'System';
                 return (
-                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <tr key={log.uuid} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {new Date(log.timestamp).toLocaleString()}
+                      {new Date(log.createdAt).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                           <span className="text-white text-xs font-semibold">
-                            {log.user.split('@')[0][0].toUpperCase()}
+                            {userName[0].toUpperCase()}
                           </span>
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {log.user}
+                            {userName}
                           </div>
                         </div>
                       </div>
@@ -299,15 +248,15 @@ export function AuditLogs() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {log.resource}
+                      {resource}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(log.status)}`}>
-                        {log.status}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(log.status || 'success')}`}>
+                        {log.status || 'success'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {log.ipAddress}
+                      {log.ipAddress || 'Unknown'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
                       {log.details || '-'}
@@ -319,8 +268,9 @@ export function AuditLogs() {
           </table>
         </div>
       </div>
+      )}
 
-      {filteredLogs.length === 0 && (
+      {!loading && !error && filteredLogs.length === 0 && (
         <div className="text-center py-12">
           <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 dark:text-gray-400">No audit logs found matching your criteria.</p>
