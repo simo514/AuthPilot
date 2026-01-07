@@ -90,7 +90,4 @@ export class LoginResponseDto {
 export class RefreshResponseDto {
     @Expose()
     accessToken: string;
-
-    @Expose()
-    refreshToken: string;
 }

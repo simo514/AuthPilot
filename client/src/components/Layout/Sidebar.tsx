@@ -19,7 +19,7 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
 }
 
-export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export function Sidebar({ activeTab: _activeTab, setActiveTab }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();

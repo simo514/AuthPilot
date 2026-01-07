@@ -97,7 +97,7 @@ export const useUserStore = create<UserState>()(
         }
       },
 
-      fetchUserById: async (uuid) => {
+      fetchUserById: async (_uuid) => {
         // TODO: Implement fetch user by ID logic
       },
 

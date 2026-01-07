@@ -86,12 +86,6 @@ export class User {
   lastLoginAt: Date;
 
   @Prop({
-    type: String,
-    default: null,
-  })
-  refreshToken: string;
-
-  @Prop({
     type: Date,
     default: null,
   })

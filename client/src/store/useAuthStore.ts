@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { User, LoginCredentials, RegisterData, LoginResponse } from '../types/auth.types';
+import { User, LoginCredentials, RegisterData } from '../types/auth.types';
 import { api, handleApiError } from '../lib/api';
 import toast from 'react-hot-toast';
+import { startTokenRefresh, stopTokenRefresh } from '../lib/tokenRefresh';
 
 // ============================================
 // AUTH STORE STATE
@@ -38,8 +39,8 @@ export const useAuthStore = create<AuthState>()(
       (set, get) => ({
         // Initial State
         user: null,
-        accessToken: null,
-        refreshToken: null,
+        accessToken: null, // Will be in memory only, not persisted
+        refreshToken: null, // Will be in HttpOnly cookie, not used here
         isAuthenticated: false,
         isLoading: false,
         error: null,
@@ -49,17 +50,20 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, error: null });
           
           try {
-            const response = await api.post<LoginResponse>('/auth/login', credentials);
-            const { accessToken, refreshToken, user } = response.data;
+            const response = await api.post<{ accessToken: string; user: User }>('/auth/login', credentials);
+            const { accessToken, user } = response.data;
             
             set({
               user,
               accessToken,
-              refreshToken,
+              refreshToken: null, // Refresh token is in HttpOnly cookie
               isAuthenticated: true,
               isLoading: false,
               error: null,
             });
+
+            // Start automatic token refresh
+            startTokenRefresh();
           } catch (error) {
             const errorMessage = handleApiError(error);
             set({
@@ -74,17 +78,20 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, error: null });
           
           try {
-            const response = await api.post<LoginResponse>('/auth/register', data);
-            const { accessToken, refreshToken, user } = response.data;
+            const response = await api.post<{ accessToken: string; user: User }>('/auth/register', data);
+            const { accessToken, user } = response.data;
             
             set({
               user,
               accessToken,
-              refreshToken,
+              refreshToken: null, // Refresh token is in HttpOnly cookie
               isAuthenticated: true,
               isLoading: false,
               error: null,
             });
+
+            // Start automatic token refresh
+            startTokenRefresh();
           } catch (error) {
             const errorMessage = handleApiError(error);
             set({
@@ -96,6 +103,17 @@ export const useAuthStore = create<AuthState>()(
         },
 
         logout: () => {
+          // Call backend logout endpoint to invalidate session
+          const currentUser = get().user;
+          if (currentUser?.uuid) {
+            api.post('/auth/logout').catch((error) => {
+              console.error('Logout error:', error);
+            });
+          }
+
+          // Stop automatic token refresh
+          stopTokenRefresh();
+
           set({
             user: null,
             accessToken: null,
@@ -123,22 +141,13 @@ export const useAuthStore = create<AuthState>()(
         },
 
         refreshAccessToken: async (): Promise<string> => {
-          const currentRefreshToken = get().refreshToken;
-
-          if (!currentRefreshToken) {
-            throw new Error('No refresh token available');
-          }
-
           try {
-            const response = await api.post<LoginResponse>('/auth/refresh', {
-              refreshToken: currentRefreshToken,
-            });
+            const response = await api.post<{ accessToken: string }>('/auth/refresh', {});
             
-            const { accessToken, refreshToken: newRefreshToken } = response.data;
+            const { accessToken } = response.data;
             
             set({
               accessToken,
-              refreshToken: newRefreshToken,
             });
 
             return accessToken;
@@ -186,9 +195,8 @@ export const useAuthStore = create<AuthState>()(
         name: 'auth-storage',
         partialize: (state) => ({
           user: state.user,
-          accessToken: state.accessToken,
-          refreshToken: state.refreshToken,
           isAuthenticated: state.isAuthenticated,
+          // Do NOT persist tokens - access token in memory, refresh token in cookie
         }),
       }
     )

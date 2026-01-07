@@ -4,13 +4,19 @@ import { UsersService } from '../users/users.service';
 import { plainToInstance } from 'class-transformer';
 import { LoginResponseDto, RefreshResponseDto } from './dto/auth-response.dto';
 import { RegisterDto } from './dto/register.dto';
+import { InjectRedis } from '@nestjs-modules/ioredis';
+import { Redis } from 'ioredis';
 
 @Injectable()
 export class AuthService {
     private logger = new Logger(AuthService.name);
+    private readonly REFRESH_TOKEN_PREFIX = 'refresh_token:';
+    private readonly REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
+
     constructor(
         private readonly jwtService: JwtService,
         private readonly usersService: UsersService,
+        @InjectRedis() private readonly redis: Redis,
     ) {}
 
     async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
@@ -33,13 +39,17 @@ export class AuthService {
         const accessToken = this.jwtService.sign(payload);
         const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
-        // Store refresh token in database
-        await this.usersService.updateRefreshToken(user.uuid, refreshToken);
+        // Store refresh token in Redis with expiration
+        await this.redis.setex(
+            `${this.REFRESH_TOKEN_PREFIX}${user.uuid}`,
+            this.REFRESH_TOKEN_TTL,
+            refreshToken
+        );
 
         // Get user data without password
         const userData = await this.usersService.getUserById(user.uuid);
 
-        this.logger.log(`Tokens generated for registered user: ${email}`);
+        this.logger.log(`Tokens generated for registered user: ${email}, stored in Redis`);
         
         // Transform to DTO to remove sensitive fields
         return plainToInstance(LoginResponseDto, {
@@ -71,7 +81,6 @@ export class AuthService {
             throw new UnauthorizedException('Invalid credentials');
         }
 
-        // Update last login
         await this.usersService.updateLastLogin(user.uuid);
 
         // Generate JWT tokens
@@ -83,15 +92,17 @@ export class AuthService {
         const accessToken = this.jwtService.sign(payload);
         const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
-        // Store refresh token in database
-        await this.usersService.updateRefreshToken(user.uuid, refreshToken);
+        // Store refresh token in Redis with expiration
+        await this.redis.setex(
+            `${this.REFRESH_TOKEN_PREFIX}${user.uuid}`,
+            this.REFRESH_TOKEN_TTL,
+            refreshToken
+        );
 
-        // Get user data without password
         const userData = await this.usersService.getUserById(user.uuid);
 
-        this.logger.log(`User logged in successfully: ${email}`);
+        this.logger.log(`User logged in successfully: ${email}, session stored in Redis`);
         
-        // Transform to DTO to remove sensitive fields
         return plainToInstance(LoginResponseDto, {
             accessToken,
             refreshToken,
@@ -106,36 +117,44 @@ export class AuthService {
         try {
             // Verify the refresh token
             const decoded = this.jwtService.verify(refreshToken);
+            const userUuid = decoded.sub;
             
-            // Find user by refresh token
-            const user = await this.usersService.findByRefreshToken(refreshToken);
-            if (!user) {
-                this.logger.warn('Invalid refresh token: not found in database');
+            // Check if refresh token exists in Redis
+            const storedToken = await this.redis.get(`${this.REFRESH_TOKEN_PREFIX}${userUuid}`);
+            if (!storedToken || storedToken !== refreshToken) {
+                this.logger.warn('Invalid refresh token: not found in Redis or mismatch');
                 throw new UnauthorizedException('Invalid refresh token');
             }
 
-            // Generate new tokens
+            // Get user data
+            const user = await this.usersService.getUserById(userUuid);
+            if (!user) {
+                this.logger.warn('User not found for refresh token');
+                throw new UnauthorizedException('Invalid refresh token');
+            }
+
+            // Generate new access token
             const payload = { 
                 email: user.email, 
                 sub: user.uuid,
                 role: user.role 
             };
             const newAccessToken = this.jwtService.sign(payload);
-            const newRefreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
-            // Update refresh token in database
-            await this.usersService.updateRefreshToken(user.uuid, newRefreshToken);
-
-            this.logger.log(`Tokens refreshed for user: ${user.email}`);
+            this.logger.log(`Access token refreshed for user: ${user.email}`);
             
-            // Transform to DTO
             return plainToInstance(RefreshResponseDto, {
                 accessToken: newAccessToken,
-                refreshToken: newRefreshToken
             }, { excludeExtraneousValues: true });
         } catch (error) {
             this.logger.warn('Invalid or expired refresh token');
             throw new UnauthorizedException('Invalid or expired refresh token');
         }
+    }
+
+    // Add logout method to remove session from Redis
+    async logout(userUuid: string): Promise<void> {
+        await this.redis.del(`${this.REFRESH_TOKEN_PREFIX}${userUuid}`);
+        this.logger.log(`User session removed from Redis: ${userUuid}`);
     }
 }

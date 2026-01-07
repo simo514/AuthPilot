@@ -12,7 +12,7 @@ type User = UserType;
 export function UserManagement() {
   const { user: currentUser } = useAuthStore();
   const isManager = useIsManager();
-  const { users, total, page, totalPages, fetchUsers, deleteUser, status, error, updateUser, createUser } = useUserStore();
+  const { users, total, totalPages, fetchUsers, deleteUser, status, error, updateUser, createUser } = useUserStore();
   const { roles, fetchRoles } = useRoleStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');

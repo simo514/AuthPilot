@@ -295,31 +295,6 @@ export class UsersService {
     }
   }
 
-  async updateRefreshToken(uuid: string, refreshToken: string): Promise<void> {
-    try {
-      await this.userModel
-        .findOneAndUpdate(
-          { uuid },
-          { refreshToken },
-          { new: true }
-        )
-        .exec();
-    } catch (error) {
-      this.logger.error(`Failed to update refresh token: ${uuid}`, error.stack);
-    }
-  }
-
-  async findByRefreshToken(refreshToken: string): Promise<UserDocument | null> {
-    try {
-      return await this.userModel
-        .findOne({ refreshToken })
-        .exec();
-    } catch (error) {
-      this.logger.error('Failed to find user by refresh token', error.stack);
-      throw new InternalServerErrorException('Failed to find user');
-    }
-  }
-
   async updatePassword(email: string, currentPassword: string, newPassword: string): Promise<void> {
     try {
       // Find user with password

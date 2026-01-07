@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { GlobalExceptionFilter } from './filters/http-exception.filter';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const logger = new Logger('server');
@@ -11,6 +12,9 @@ async function bootstrap() {
   
   // Security: Helmet
   app.use(helmet());
+  
+  // Cookie Parser
+  app.use(cookieParser());
   
   // Global Exception Filter
   app.useGlobalFilters(new GlobalExceptionFilter());
