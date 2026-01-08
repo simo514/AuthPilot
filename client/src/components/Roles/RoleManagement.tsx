@@ -5,7 +5,7 @@ import { Role } from '../../types/role.types';
 import { Permission } from '../../types/auth.types';
 
 export function RoleManagement() {
-  const { roles, fetchRoles, status, error, fetchPermissions, permissions, createRole, deleteRole, toggleRoleStatus, updateRolePermissions } = useRoleStore();
+  const { roles, fetchRoles, status, error, fetchPermissions, permissions, createRole, deleteRole, toggleRoleStatus, updateRolePermissions, updateRole } = useRoleStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [deletingRole, setDeletingRole] = useState<Role | null>(null);
@@ -157,7 +157,17 @@ export function RoleManagement() {
           title="Edit Role"
           role={editingRole}
           onClose={() => setEditingRole(null)}
-          onSave={() => {}}
+          onSave={async (formData) => {
+            try {
+              await updateRole(editingRole.id, {
+                name: formData.name,
+                description: formData.description,
+              });
+              setEditingRole(null);
+            } catch (err) {
+              // error handled in store
+            }
+          }}
           permissions={(permissions as Permission[]) || []}
         />
       )}
@@ -280,30 +290,33 @@ export function RoleModal({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-              Permissions
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-64 overflow-y-auto">
-              {permissions.map((permission) => (
-                <label
-                  key={permission}
-                  className="flex items-center gap-3 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-150 cursor-pointer group"
-                >
-                  <input
-                    type="checkbox"
-                    checked={formData.permissions.includes(permission)}
-                    onChange={() => handlePermissionToggle(permission)}
-                    className="accent-blue-600 w-5 h-5 rounded border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100 group-hover:text-blue-600 transition-colors">
-                    {/* Optionally add an icon here for each permission type */}
-                    {getPermissionLabel(permission)}
-                  </span>
-                </label>
-              ))}
+          {/* Only show permissions when creating a new role, not when editing */}
+          {!role && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                Permissions
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-64 overflow-y-auto">
+                {permissions.map((permission) => (
+                  <label
+                    key={permission}
+                    className="flex items-center gap-3 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-150 cursor-pointer group"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.permissions.includes(permission)}
+                      onChange={() => handlePermissionToggle(permission)}
+                      className="accent-blue-600 w-5 h-5 rounded border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-100 group-hover:text-blue-600 transition-colors">
+                      {/* Optionally add an icon here for each permission type */}
+                      {getPermissionLabel(permission)}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button

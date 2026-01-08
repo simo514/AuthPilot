@@ -3,27 +3,27 @@ import { UserDepartment } from '../enums/user-department.enum';
 import { UserStatus } from '../enums/user-status.enum';
 
 export class UpdateUserDto {
-	@IsOptional()
-	@IsString()
-	fullName?: string;
+  @IsOptional()
+  @IsString()
+  fullName?: string;
 
-	@IsOptional()
-	@IsEmail()
-	email?: string;
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
-	@IsOptional()
-	@IsMongoId()
-	roleId?: string;
+  @IsOptional()
+  @IsMongoId()
+  roleId?: string;
 
-	@IsOptional()
-	@IsEnum(UserDepartment)
-	department?: UserDepartment;
+  @IsOptional()
+  @IsEnum(UserDepartment)
+  department?: UserDepartment;
 
-	@IsOptional()
-	@IsString()
-	managerId?: string;	
+  @IsOptional()
+  @IsString()
+  managerId?: string;
 
-	@IsOptional()
-	@IsEnum(UserStatus)
-	status?: UserStatus;
+  @IsOptional()
+  @IsEnum(UserStatus)
+  status?: UserStatus;
 }

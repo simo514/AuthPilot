@@ -4,7 +4,6 @@ import { randomUUID } from 'crypto';
 import { UserDepartment } from './enums/user-department.enum';
 import { UserStatus } from './enums/user-status.enum';
 
-
 export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
@@ -54,7 +53,6 @@ export class User {
   })
   role: string;
 
-
   @Prop({
     type: String,
     enum: [...Object.values(UserDepartment), null],
@@ -102,6 +100,20 @@ export class User {
     default: null,
   })
   resetPasswordExpires: Date;
+
+  @Prop({
+    type: String,
+    default: null,
+    unique: true,
+    sparse: true, // Allows null values while maintaining uniqueness for non-null values
+  })
+  googleId: string;
+
+  @Prop({
+    type: String,
+    default: null,
+  })
+  picture: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

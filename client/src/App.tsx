@@ -13,6 +13,7 @@ import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { RoleGuard } from './components/Auth/RoleGuard';
 import { PermissionGuard } from './components/Auth/PermissionGuard';
 import { AuthPage } from './components/Auth/AuthPage';
+import { GoogleCallback } from './components/Auth/GoogleCallback';
 import { useAuthStore } from './store/useAuthStore';
 import { useThemeStore } from './store/useThemeStore';
 import { UserRole, Permission } from './types/auth.types';
@@ -65,6 +66,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/login" element={<AuthPage />} />
         <Route path="/signup" element={<AuthPage isSignup />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
         
         {/* Protected Routes */}
         <Route

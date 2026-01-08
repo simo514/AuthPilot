@@ -21,6 +21,8 @@ interface AuthState {
   // Actions
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  loginWithGoogle: () => void;
+  handleGoogleCallback: (accessToken: string, user: User) => void;
   logout: () => void;
   refreshAccessToken: () => Promise<string>;
   clearError: () => void;
@@ -100,6 +102,26 @@ export const useAuthStore = create<AuthState>()(
             });
             throw new Error(errorMessage);
           }
+        },
+
+        loginWithGoogle: () => {
+          const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+          // Redirect to backend Google OAuth endpoint
+          window.location.href = `${API_BASE_URL}/auth/google`;
+        },
+
+        handleGoogleCallback: (accessToken: string, user: User) => {
+          set({
+            user,
+            accessToken,
+            refreshToken: null, // Refresh token is in HttpOnly cookie
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          // Start automatic token refresh
+          startTokenRefresh();
         },
 
         logout: () => {

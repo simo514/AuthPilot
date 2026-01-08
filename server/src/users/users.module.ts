@@ -7,13 +7,13 @@ import { RolesModule } from '../roles/roles.module';
 import { AuditModule } from '../audit/audit.module';
 
 @Module({
-    imports: [
-        MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-        RolesModule,
-        forwardRef(() => AuditModule),
-    ],
-    controllers: [UsersController],
-    providers: [UsersService],
-    exports: [MongooseModule, UsersService],
+  imports: [
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    RolesModule,
+    forwardRef(() => AuditModule),
+  ],
+  controllers: [UsersController],
+  providers: [UsersService],
+  exports: [MongooseModule, UsersService],
 })
 export class UsersModule {}

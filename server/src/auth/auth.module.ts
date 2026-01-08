@@ -8,6 +8,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from '../users/user.schema';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './jwt.strategy';
+import { GoogleStrategy } from './google.strategy';
 import { AuditModule } from '../audit/audit.module';
 
 @Module({
@@ -27,7 +28,7 @@ import { AuditModule } from '../audit/audit.module';
     UsersModule,
     AuditModule,
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, GoogleStrategy],
   controllers: [AuthController],
   exports: [PassportModule, JwtStrategy],
 })

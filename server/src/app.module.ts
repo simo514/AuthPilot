@@ -10,9 +10,8 @@ import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
 
-
 @Module({
-   imports: [
+  imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({

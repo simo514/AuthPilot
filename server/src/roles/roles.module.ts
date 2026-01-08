@@ -6,7 +6,7 @@ import { Role, RoleSchema } from './role.schema';
 import { AuditModule } from '../audit/audit.module';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Role.name, schema: RoleSchema }]),AuditModule],
+  imports: [MongooseModule.forFeature([{ name: Role.name, schema: RoleSchema }]), AuditModule],
   providers: [RolesService],
   controllers: [RolesController],
   exports: [MongooseModule],

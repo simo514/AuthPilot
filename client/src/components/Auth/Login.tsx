@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
+import { GoogleAuthButton } from './GoogleAuthButton';
 
 interface LoginProps {
   onToggleMode?: () => void;
@@ -9,7 +10,7 @@ interface LoginProps {
 
 export function Login({ onToggleMode }: LoginProps) {
   const navigate = useNavigate();
-  const { login, isLoading, error: storeError, clearError } = useAuthStore();
+  const { login, loginWithGoogle, isLoading, error: storeError, clearError } = useAuthStore();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,6 +29,10 @@ export function Login({ onToggleMode }: LoginProps) {
     } catch (err) {
       // Error is handled in store
     }
+  };
+
+  const handleGoogleLogin = () => {
+    loginWithGoogle();
   };
 
   return (
@@ -104,6 +109,23 @@ export function Login({ onToggleMode }: LoginProps) {
               </button>
             </div>
           </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <GoogleAuthButton mode="login" onClick={handleGoogleLogin} disabled={isLoading} />
+            </div>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
