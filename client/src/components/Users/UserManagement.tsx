@@ -6,13 +6,16 @@ import { User as UserType, Permission } from '../../types/auth.types';
 import { Search, Filter, Plus, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRoleStore } from '../../store';
 import { PermissionGuard } from '../Auth/PermissionGuard';
+import { DEPARTMENTS } from '../../enums/departments.enum';
+import { usePermissions } from '../../hooks/usePermissions';
 
 type User = UserType;
 
 export function UserManagement() {
   const { user: currentUser } = useAuthStore();
   const isManager = useIsManager();
-  const { users, total, page, totalPages, fetchUsers, deleteUser, status, error, updateUser, createUser } = useUserStore();
+  const { hasPermission } = usePermissions();
+  const { users, total, totalPages, fetchUsers, deleteUser, status, error, updateUser, createUser } = useUserStore();
   const { roles, fetchRoles } = useRoleStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -43,8 +46,11 @@ export function UserManagement() {
   }, [currentPage, itemsPerPage, debouncedSearch, currentUser, isManager]);
 
   useEffect(() => {
-    fetchRoles();
-  }, [fetchRoles]);
+    // Only fetch roles if user has permission to read roles
+    if (hasPermission(Permission.ROLE_READ)) {
+      fetchRoles();
+    }
+  }, [fetchRoles, hasPermission]);
 
   // Client-side filtering for role (only for managers' team view)
   const filteredUsers = isManager
@@ -539,12 +545,18 @@ export function CreateUserModal({ onClose, onSave, roles = [] }: {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Department
             </label>
-            <input
-              type="text"
+            <select
               value={formData.department || ''}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            />
+            >
+              <option value="" disabled>Select Department</option>
+              {DEPARTMENTS.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex items-center justify-end space-x-4 pt-4">
@@ -623,30 +635,56 @@ function EditUserModal({ user, onClose, onSave, currentUserRole, roles }: {
   currentUserRole?: string;
   roles: any[];
 }) {
-  // Ensure formData.roleId is always the role's id (not name)
-  const initialRoleId = (() => {
-    if (user.roleId && typeof user.roleId === 'object') return user.roleId.id;
-    if (user.roleId && typeof user.roleId === 'string') {
-      // Try to match by id, fallback to match by name
-      const found = roles.find(r => r.id === user.roleId);
-      if (found) return found.id;
-      // If not found by id, try by name
-      const byName = roles.find(r => r.name === user.roleId);
-      if (byName) return byName.id;
-      return user.roleId;
+  const { managers, fetchManagers } = useUserStore();
+  
+  const [formData, setFormData] = useState<any>({ ...user, roleId: '' });
+
+  useEffect(() => {
+    fetchManagers();
+  }, [fetchManagers]);
+
+  // Update roleId when roles are loaded or user changes
+  useEffect(() => {
+    if (roles.length === 0) return;
+    
+    let roleId = '';
+    
+    // Try different ways to find the role ID
+    if (user.roleId && typeof user.roleId === 'object' && user.roleId.id) {
+      roleId = user.roleId.id;
+    } else if (user.roleId && typeof user.roleId === 'string') {
+      // Check if it's already a valid role ID
+      const foundById = roles.find(r => r.id === user.roleId || r._id === user.roleId);
+      if (foundById) {
+        roleId = foundById.id || foundById._id;
+      } else {
+        // Try matching by name
+        const foundByName = roles.find(r => r.name?.toLowerCase() === user.roleId.toLowerCase());
+        if (foundByName) {
+          roleId = foundByName.id || foundByName._id;
+        }
+      }
     }
-    if (user.role) {
-      const byName = roles.find(r => r.name === user.role);
-      if (byName) return byName.id;
+    
+    // Fallback: try to match by user.role property
+    if (!roleId && user.role) {
+      const foundByRole = roles.find(r => r.name?.toLowerCase() === user.role.toLowerCase());
+      if (foundByRole) {
+        roleId = foundByRole.id || foundByRole._id;
+      }
     }
-    return '';
-  })();
-  const [formData, setFormData] = useState<any>({ ...user, roleId: initialRoleId });
+    
+    setFormData((prev: any) => ({ ...prev, roleId }));
+  }, [roles, user]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
   };
+
+  // Determine if selected role is 'user' by checking role name
+  const selectedRole = roles.find(r => (r.id || r._id) === formData.roleId);
+  const isUserRole = selectedRole?.name?.toLowerCase() === 'user';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -706,16 +744,43 @@ function EditUserModal({ user, onClose, onSave, currentUserRole, roles }: {
             </div>
           )}
 
+          {/* Manager Select - Only show when role is 'user' */}
+          {isUserRole && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Manager
+              </label>
+              <select
+                value={formData.managerId || ''}
+                onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">Select a manager</option>
+                {managers.map((manager) => (
+                  <option key={manager.uuid} value={manager.uuid}>
+                    {manager.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Department
             </label>
-            <input
-              type="text"
+            <select
               value={formData.department || ''}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            />
+            >
+              <option value="" disabled>Select Department</option>
+              {DEPARTMENTS.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
           </div>
 
           {currentUserRole === 'admin' && (

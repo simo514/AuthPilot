@@ -13,6 +13,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true, // Include cookies in requests
   headers: {
     'Content-Type': 'application/json',
   },
@@ -64,27 +65,25 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Get refresh token from storage
+        // Get auth state from storage
         const authStorage = localStorage.getItem('auth-storage');
         
         if (authStorage) {
           const { state } = JSON.parse(authStorage);
-          const refreshToken = state?.refreshToken;
 
-          if (refreshToken) {
-            // Call refresh token endpoint
-            const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-              refreshToken,
+          if (state?.isAuthenticated) {
+            // Call refresh token endpoint - refresh token is in cookie
+            const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+              withCredentials: true,
             });
 
-            const { accessToken, refreshToken: newRefreshToken } = response.data;
+            const { accessToken } = response.data;
 
-            // Update tokens in storage
+            // Update access token in storage
             const updatedStorage = {
               state: {
                 ...state,
                 accessToken,
-                refreshToken: newRefreshToken,
               },
             };
             localStorage.setItem('auth-storage', JSON.stringify(updatedStorage));

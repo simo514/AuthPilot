@@ -1,34 +1,34 @@
 import { Exclude, Expose, Transform } from 'class-transformer';
 
 export class RoleResponseDto {
-    @Expose()
-    @Transform(({ obj }) => obj._id.toString())
-    id: string;
+  @Expose()
+  @Transform(({ obj }) => obj._id.toString())
+  id: string;
 
-    @Expose()
-    name: string;
+  @Expose()
+  name: string;
 
-    @Expose()
-    description: string;
+  @Expose()
+  description: string;
 
-    @Expose()
-    permissions: string[];
+  @Expose()
+  permissions: string[];
 
-    @Expose()
-    isActive: boolean;
+  @Expose()
+  isActive: boolean;
 
-    @Expose()
-    level: number;
+  @Expose()
+  level: number;
 
-    @Expose()
-    createdAt: Date;
+  @Expose()
+  createdAt: Date;
 
-    @Expose()
-    updatedAt: Date;
+  @Expose()
+  updatedAt: Date;
 
-    @Exclude()
-    _id: any;
+  @Exclude()
+  _id: any;
 
-    @Exclude()
-    __v: number;
+  @Exclude()
+  __v: number;
 }

@@ -1,4 +1,11 @@
-import { Injectable, InternalServerErrorException, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './user.schema';
@@ -19,15 +26,16 @@ export class UsersService {
   ) {}
 
   async createUser(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    const {fullName, email, password, roleId, role, department, managerId} = createUserDto;
-    
-    // Handle case where role ID is sent in "role" field instead of "roleId"
+    const { fullName, email, password, roleId, role, department, managerId } = createUserDto;
+
     // If role looks like a MongoDB ObjectId (24 hex chars), treat it as roleId
     const isRoleAnObjectId = role && /^[0-9a-fA-F]{24}$/.test(role);
     let finalRoleId = roleId || (isRoleAnObjectId ? role : null);
-    
-    this.logger.debug(`createUser called with roleId: ${roleId}, role: ${role}, finalRoleId: ${finalRoleId}`);
-    
+
+    this.logger.debug(
+      `createUser called with roleId: ${roleId}, role: ${role}, finalRoleId: ${finalRoleId}`,
+    );
+
     let roleName = 'user';
 
     // If no roleId provided, find the default 'user' role
@@ -48,11 +56,11 @@ export class UsersService {
       if (!roleDoc.isActive) {
         throw new BadRequestException('Cannot assign inactive role to user');
       }
-      
+
       // Map role name to UserRole enum (convert to lowercase to match enum)
       roleName = roleDoc.name.toLowerCase();
     }
-    
+
     const createdUser = new this.userModel({
       email,
       fullName,
@@ -65,13 +73,10 @@ export class UsersService {
     try {
       await createdUser.save();
       this.logger.log(`User created successfully: ${email} with role: ${roleName}`);
-      
+
       // Fetch the user with populated role to return complete data
-      const userWithRole = await this.userModel
-        .findById(createdUser._id)
-        .populate('roleId')
-        .exec();
-      
+      const userWithRole = await this.userModel.findById(createdUser._id).populate('roleId').exec();
+
       return plainToInstance(UserResponseDto, userWithRole, { excludeExtraneousValues: true });
     } catch (error) {
       this.logger.error(`Failed to create user: ${email}`, error.stack);
@@ -82,7 +87,10 @@ export class UsersService {
     }
   }
 
-  async updateUser (uuid: string, updateData: UpdateUserDto): Promise<Omit<User, 'password'> | null> {
+  async updateUser(
+    uuid: string,
+    updateData: UpdateUserDto,
+  ): Promise<Omit<User, 'password'> | null> {
     this.logger.log(`Updating user: ${uuid}`);
     const dataToUpdate = { ...updateData } as any;
 
@@ -139,19 +147,19 @@ export class UsersService {
     search?: string,
     department?: string,
     role?: string,
-    status?: string
+    status?: string,
   ): Promise<{ users: Omit<User, 'password'>[]; total: number; page: number; totalPages: number }> {
     const filter: any = {};
-    
+
     if (department) {
       filter.department = department;
     }
-    
+
     if (role) {
       filter.role = role;
     }
 
-    if(status) {
+    if (status) {
       filter.status = status;
     }
 
@@ -161,7 +169,7 @@ export class UsersService {
         { email: { $regex: search, $options: 'i' } },
       ];
     }
-    
+
     try {
       const total = await this.userModel.countDocuments(filter);
       const users = await this.userModel
@@ -173,7 +181,7 @@ export class UsersService {
         .limit(limit)
         .lean()
         .exec();
-      
+
       return {
         users,
         total,
@@ -195,12 +203,12 @@ export class UsersService {
         .populate('roleId', 'name permissions isActive level -_id')
         .lean()
         .exec();
-      
+
       if (!user) {
         this.logger.warn(`User not found: ${uuid}`);
         return null;
       }
-      
+
       this.logger.log(`User retrieved successfully: ${uuid}`);
       return user;
     } catch (error) {
@@ -213,12 +221,12 @@ export class UsersService {
     this.logger.log(`Deleting user: ${uuid}`);
     try {
       const result = await this.userModel.deleteOne({ uuid }).exec();
-      
+
       if (result.deletedCount === 0) {
         this.logger.warn(`User not found for deletion: ${uuid}`);
         return false;
       }
-      
+
       this.logger.log(`User deleted successfully: ${uuid}`);
       return true;
     } catch (error) {
@@ -235,7 +243,7 @@ export class UsersService {
         .populate('roleId', 'name permissions isActive level -_id')
         .lean()
         .exec();
-      
+
       this.logger.log(`Retrieved ${managers.length} managers`);
       return managers;
     } catch (error) {
@@ -253,7 +261,7 @@ export class UsersService {
         .populate('roleId', 'name permissions isActive level -_id')
         .lean()
         .exec();
-      
+
       this.logger.log(`Retrieved ${users.length} team members for manager: ${managerUuid}`);
       return users;
     } catch (error) {
@@ -268,12 +276,12 @@ export class UsersService {
         .findOne({ email: email.toLowerCase() })
         .select('+password')
         .exec();
-      
+
       if (!user) {
         this.logger.warn(`User not found: ${email}`);
         return null;
       }
-      
+
       return user;
     } catch (error) {
       this.logger.error(`Failed to fetch user with password: ${email}`, error.stack);
@@ -284,46 +292,20 @@ export class UsersService {
   async updateLastLogin(uuid: string): Promise<void> {
     try {
       await this.userModel
-        .findOneAndUpdate(
-          { uuid },
-          { lastLoginAt: new Date() },
-          { new: true }
-        )
+        .findOneAndUpdate({ uuid }, { lastLoginAt: new Date() }, { new: true })
         .exec();
     } catch (error) {
       this.logger.error(`Failed to update last login: ${uuid}`, error.stack);
     }
   }
 
-  async updateRefreshToken(uuid: string, refreshToken: string): Promise<void> {
-    try {
-      await this.userModel
-        .findOneAndUpdate(
-          { uuid },
-          { refreshToken },
-          { new: true }
-        )
-        .exec();
-    } catch (error) {
-      this.logger.error(`Failed to update refresh token: ${uuid}`, error.stack);
-    }
-  }
-
-  async findByRefreshToken(refreshToken: string): Promise<UserDocument | null> {
-    try {
-      return await this.userModel
-        .findOne({ refreshToken })
-        .exec();
-    } catch (error) {
-      this.logger.error('Failed to find user by refresh token', error.stack);
-      throw new InternalServerErrorException('Failed to find user');
-    }
-  }
-
   async updatePassword(email: string, currentPassword: string, newPassword: string): Promise<void> {
     try {
       // Find user with password
-      const user = await this.userModel.findOne({ email: email.toLowerCase() }).select('+password').exec();
+      const user = await this.userModel
+        .findOne({ email: email.toLowerCase() })
+        .select('+password')
+        .exec();
       if (!user) {
         throw new NotFoundException('User not found');
       }
@@ -343,11 +325,66 @@ export class UsersService {
       this.logger.log(`Password updated successfully for user: ${email}`);
     } catch (error) {
       this.logger.error(`Failed to update password: ${email}`, error.stack);
-      throw error instanceof NotFoundException || error instanceof BadRequestException ? error : new InternalServerErrorException('Failed to update password');
+      throw error instanceof NotFoundException || error instanceof BadRequestException
+        ? error
+        : new InternalServerErrorException('Failed to update password');
     }
   }
 
   async comparePasswords(plainPassword: string, hashedPassword: string): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
+  }
+
+  async createUserWithGoogle(data: {
+    fullName: string;
+    email: string;
+    password: string;
+    googleId: string;
+    picture?: string;
+  }): Promise<UserResponseDto> {
+    const { fullName, email, password, googleId, picture } = data;
+
+    // Find default 'user' role
+    const defaultRole = await this.roleModel.findOne({ name: /^user$/i }).exec();
+    if (!defaultRole) {
+      throw new InternalServerErrorException('Default user role not found in database');
+    }
+
+    const createdUser = new this.userModel({
+      email,
+      fullName,
+      password: await bcrypt.hash(password, 10),
+      roleId: defaultRole._id.toString(),
+      role: defaultRole.name.toLowerCase(),
+      googleId,
+      picture,
+    });
+
+    try {
+      await createdUser.save();
+      this.logger.log(`User created via Google OAuth: ${email}`);
+
+      const userWithRole = await this.userModel.findById(createdUser._id).populate('roleId').exec();
+
+      return plainToInstance(UserResponseDto, userWithRole, { excludeExtraneousValues: true });
+    } catch (error) {
+      this.logger.error(`Failed to create user via Google OAuth: ${email}`, error.stack);
+      if (error.code === 11000) {
+        throw new ConflictException('User with this email already exists');
+      }
+      throw new InternalServerErrorException('Failed to create user');
+    }
+  }
+
+  async updateGoogleId(uuid: string, googleId: string, picture?: string): Promise<void> {
+    try {
+      await this.userModel
+        .findOneAndUpdate({ uuid }, { googleId, ...(picture && { picture }) }, { new: true })
+        .exec();
+      this.logger.log(`Google ID linked to user: ${uuid}`);
+    } catch (error) {
+      this.logger.error(`Failed to update Google ID for user: ${uuid}`, error.stack);
+      throw new InternalServerErrorException('Failed to link Google account');
+    }
   }
 }

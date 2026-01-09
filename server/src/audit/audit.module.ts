@@ -7,12 +7,12 @@ import { AuditService } from './audit.service';
 import { AuditInterceptor } from './audit.interceptor';
 
 @Module({
-    imports: [
-        forwardRef(() => UsersModule),
-        MongooseModule.forFeature([{ name: Audit.name, schema: AuditSchema }]),
-    ],
-    controllers: [AuditController],
-    providers: [AuditService, AuditInterceptor],
-    exports: [AuditService, AuditInterceptor],
+  imports: [
+    forwardRef(() => UsersModule),
+    MongooseModule.forFeature([{ name: Audit.name, schema: AuditSchema }]),
+  ],
+  controllers: [AuditController],
+  providers: [AuditService, AuditInterceptor],
+  exports: [AuditService, AuditInterceptor],
 })
 export class AuditModule {}

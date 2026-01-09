@@ -98,7 +98,25 @@ export const useRoleStore = create<RoleState>()(
       },
 
       updateRole: async (id, data) => {
-        // TODO: Implement update role logic
+        set({ status: RequestStatus.LOADING, error: null });
+        try {
+            const response = await api.patch<Role>(`/roles/${id}`, data);
+            set((state) => ({
+              roles: state.roles.map((role) =>
+                role.id === id ? response.data : role
+              ),
+              status: RequestStatus.SUCCESS,
+              error: null,
+            }));
+            toast.success('Role updated successfully');
+        } catch (error) {
+          set({
+            status: RequestStatus.ERROR,
+            error: 'Failed to update role',
+          });
+          toast.error(extractApiErrorMessage(error, 'Failed to update role'));
+          throw error;
+        }
       },
 
       deleteRole: async (id) => {

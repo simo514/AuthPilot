@@ -3,36 +3,36 @@ import { UserDepartment } from '../enums/user-department.enum';
 import { UserStatus } from '../enums/user-status.enum';
 
 export class CreateUserDto {
-    @IsString()
-    @IsNotEmpty()
-    fullName: string;
+  @IsString()
+  @IsNotEmpty()
+  fullName: string;
 
-    @IsString()
-    @IsNotEmpty()
-    @IsEmail()
-    email: string;
+  @IsString()
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
 
-    @IsString()
-    @IsNotEmpty()
-    password: string;
+  @IsString()
+  @IsNotEmpty()
+  password: string;
 
-    @IsOptional()
-    @IsMongoId()
-    roleId?: string;
+  @IsOptional()
+  @IsMongoId()
+  roleId?: string;
 
-    @IsOptional()
-    @IsString()
-    managerId?: string;
+  @IsOptional()
+  @IsString()
+  managerId?: string;
 
-    @IsOptional()
-    @IsEnum(UserDepartment)
-    department?: UserDepartment;
+  @IsOptional()
+  @IsEnum(UserDepartment)
+  department?: UserDepartment;
 
-    @IsOptional()
-    @IsString()
-    role?: string;
+  @IsOptional()
+  @IsString()
+  role?: string;
 
-    @IsOptional()
-    @IsEnum(UserStatus)
-    status?: UserStatus;
+  @IsOptional()
+  @IsEnum(UserStatus)
+  status?: UserStatus;
 }

@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Shield, Activity, TrendingUp } from 'lucide-react';
 import { useUserStore } from '../../store/useUserStore';
 import { useRoleStore } from '../../store/useRoleStore';
+import { useAuditStore } from '../../store/useAuditStore';
 import { CreateUserDto } from '../../types/user.types';
 import { Permission } from '../../types/auth.types';
 import { CreateUserModal } from '../Users/UserManagement';
@@ -9,29 +11,49 @@ import { CreateRoleDto } from '../../types/role.types';
 import { RoleModal } from '../Roles/RoleManagement';
 
 export function AdminDashboard() {
-  const { createUser } = useUserStore();
+  const navigate = useNavigate();
+  const { total: totalUsers, fetchUsers } = useUserStore();
   const { roles, fetchRoles, permissions, fetchPermissions, createRole } = useRoleStore();
+  const { logs: auditLogs, fetchLogs: fetchAuditLogs } = useAuditStore();
+  const { createUser } = useUserStore();
+  
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCreateRoleModal, setShowCreateRoleModal] = useState(false);
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchUsers(1, 1);
+    fetchRoles();
+    fetchAuditLogs(1, 100);
+  }, [fetchUsers, fetchRoles, fetchAuditLogs]);
+
+  // Count active roles
+  const activeRolesCount = roles.filter(role => role.isActive).length;
+
+  // Count login sessions from audit logs (actions that contain "login")
+  const loginSessionsCount = auditLogs.filter(log => 
+    log.action?.toLowerCase().includes('login') && log.status === 'success'
+  ).length;
+
   const stats = [
     {
       title: 'Total Users',
-      value: '2,847',
+      value: totalUsers.toString(),
       change: '+12%',
       changeType: 'positive',
       icon: Users
     },
     {
       title: 'Active Roles',
-      value: '8',
-      change: '+2',
+      value: activeRolesCount.toString(),
+      change: `${roles.length} total`,
       changeType: 'positive',
       icon: Shield
     },
     {
       title: 'Login Sessions',
-      value: '1,234',
-      change: '+8%',
+      value: loginSessionsCount.toString(),
+      change: 'Recent logins',
       changeType: 'positive',
       icon: Activity
     },
@@ -44,13 +66,12 @@ export function AdminDashboard() {
     }
   ];
 
-  const recentActivity = [
-    { user: 'John Doe', action: 'Created new user account', time: '2 minutes ago' },
-    { user: 'Sarah Smith', action: 'Updated role permissions', time: '15 minutes ago' },
-    { user: 'Mike Johnson', action: 'Logged in from new device', time: '1 hour ago' },
-    { user: 'Emma Wilson', action: 'Changed password', time: '2 hours ago' },
-    { user: 'David Brown', action: 'Exported user data', time: '3 hours ago' }
-  ];
+  // Get recent activity from audit logs
+  const recentActivity = auditLogs.slice(0, 5).map(log => ({
+    user: log.user?.fullName || 'Unknown User',
+    action: log.action || 'Unknown action',
+    time: new Date(log.createdAt).toLocaleString()
+  }));
 
   return (
     <div className="p-6 space-y-6">
@@ -100,7 +121,7 @@ export function AdminDashboard() {
               <div key={index} className="flex items-center space-x-4">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                   <span className="text-white text-sm font-semibold">
-                    {activity.user.split(' ').map(n => n[0]).join('')}
+                    {activity.user.split(' ').map((n: any[]) => n[0]).join('')}
                   </span>
                 </div>
                 <div className="flex-1">
@@ -159,7 +180,10 @@ export function AdminDashboard() {
                       permissions={(permissions as Permission[]) || []}
                     />
                   )}
-            <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+            <button 
+              className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+              onClick={() => navigate('/audit')}
+            >
               <Activity className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">View Reports</p>
             </button>

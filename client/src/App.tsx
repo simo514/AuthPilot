@@ -13,14 +13,32 @@ import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { RoleGuard } from './components/Auth/RoleGuard';
 import { PermissionGuard } from './components/Auth/PermissionGuard';
 import { AuthPage } from './components/Auth/AuthPage';
+import { GoogleCallback } from './components/Auth/GoogleCallback';
 import { useAuthStore } from './store/useAuthStore';
 import { useThemeStore } from './store/useThemeStore';
 import { UserRole, Permission } from './types/auth.types';
 import { useEffect } from 'react';
 import Unauthorized from './components/Auth/Unauthorized';
+import { startTokenRefresh, stopTokenRefresh } from './lib/tokenRefresh';
 
 function App() {
   const { theme } = useThemeStore();
+  const { isAuthenticated } = useAuthStore();
+
+  // Initialize automatic token refresh on app load
+  useEffect(() => {
+    if (isAuthenticated) {
+      startTokenRefresh();
+    } else {
+      stopTokenRefresh();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      stopTokenRefresh();
+    };
+  }, [isAuthenticated]);
+
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -48,6 +66,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/login" element={<AuthPage />} />
         <Route path="/signup" element={<AuthPage isSignup />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
         
         {/* Protected Routes */}
         <Route

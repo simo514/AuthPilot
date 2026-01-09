@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Filter, Download, Search, User, Shield, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useAuditStore, AuditLog } from '../../store/useAuditStore';
+import { useAuditStore } from '../../store/useAuditStore';
 
 export function AuditLogs() {
-  const { logs, total, page, totalPages, loading, error, fetchLogs } = useAuditStore();
+  const { logs, total, totalPages, loading, error, fetchLogs } = useAuditStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterAction, setFilterAction] = useState('all');

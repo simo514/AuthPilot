@@ -2,10 +2,15 @@ import { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUserStore } from '../../store/useUserStore';
 import { Lock, Bell, User, Save, Eye, EyeOff } from 'lucide-react';
+import { DEPARTMENTS } from '../../enums/departments.enum';
+import { usePermissions } from '../../hooks/usePermissions';
+import { Permission } from '../../types/auth.types';
 
 export function Settings() {
-  const { user, resetPassword, error, clearError, updateCurrentUser } = useAuthStore();
+  const { user, resetPassword, updateCurrentUser } = useAuthStore();
   const updateUser = useUserStore((state) => state.updateUser);
+  const { hasPermission } = usePermissions();
+  const canChangeDepartment = hasPermission(Permission.DEPARTMENT_UPDATE);
   const [activeTab, setActiveTab] = useState('profile');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -163,20 +168,25 @@ export function Settings() {
                   <select
                     value={profileData.department}
                     onChange={(e) => setProfileData({ ...profileData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    disabled={!canChangeDepartment}
+                    className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white ${
+                      !canChangeDepartment ? 'bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : ''
+                    }`}
                   >
                     {(!profileData.department || profileData.department === '') && (
-                      <option value="">Select Department</option>
+                      <option value="" disabled>Select Department</option>
                     )}
-                    <option value="Engineering">Engineering</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Sales">Sales</option>
-                    <option value="HR">HR</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Product">Product</option>
-                    <option value="Support">Support</option>
+                    {DEPARTMENTS.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
                   </select>
+                  {!canChangeDepartment && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      You don't have permission to change department
+                    </p>
+                  )}
                 </div>
 
                 <div>

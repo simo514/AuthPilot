@@ -30,7 +30,7 @@ export class PermissionsGuard implements CanActivate {
 
     // Check if user has at least one of the required permissions
     const hasPermission = requiredPermissions.some((permission) =>
-      userPermissions.includes(permission)
+      userPermissions.includes(permission),
     );
 
     if (!hasPermission) {
