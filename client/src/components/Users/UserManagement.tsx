@@ -50,7 +50,7 @@ export function UserManagement() {
     if (hasPermission(Permission.ROLE_READ)) {
       fetchRoles();
     }
-  }, [fetchRoles, hasPermission]);
+  }, [fetchRoles]);
 
   // Client-side filtering for role (only for managers' team view)
   const filteredUsers = isManager

@@ -103,7 +103,7 @@ export class User {
 
   @Prop({
     type: String,
-    default: null,
+    default: undefined, // Use undefined instead of null for sparse index
     unique: true,
     sparse: true, // Allows null values while maintaining uniqueness for non-null values
   })

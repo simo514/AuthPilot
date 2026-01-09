@@ -70,6 +70,8 @@ export class UsersService {
       managerId,
       ...(department && { department }),
     });
+    
+    
     try {
       await createdUser.save();
       this.logger.log(`User created successfully: ${email} with role: ${roleName}`);
@@ -81,7 +83,16 @@ export class UsersService {
     } catch (error) {
       this.logger.error(`Failed to create user: ${email}`, error.stack);
       if (error.code === 11000) {
-        throw new ConflictException('User with this email already exists');
+        // Check which field caused the duplicate key error
+        const duplicateField = error.keyPattern ? Object.keys(error.keyPattern)[0] : 'unknown';
+        
+        if (duplicateField === 'email') {
+          throw new ConflictException('User with this email already exists');
+        } else if (duplicateField === 'googleId') {
+          throw new ConflictException('Google ID already exists');
+        } else {
+          throw new ConflictException(`Duplicate ${duplicateField} already exists`);
+        }
       }
       throw new InternalServerErrorException('Failed to create user');
     }
