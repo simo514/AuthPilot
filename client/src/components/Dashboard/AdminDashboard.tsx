@@ -9,9 +9,11 @@ import { Permission } from '../../types/auth.types';
 import { CreateUserModal } from '../Users/UserManagement';
 import { CreateRoleDto } from '../../types/role.types';
 import { RoleModal } from '../Roles/RoleManagement';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   const { total: totalUsers, fetchUsers } = useUserStore();
   const { roles, fetchRoles, permissions, fetchPermissions, createRole } = useRoleStore();
   const { logs: auditLogs, fetchLogs: fetchAuditLogs } = useAuditStore();
@@ -23,7 +25,9 @@ export function AdminDashboard() {
   // Fetch data on component mount
   useEffect(() => {
     fetchUsers(1, 1);
-    fetchRoles();
+    if (hasPermission(Permission.ROLE_READ)) {
+      fetchRoles();
+    }
     fetchAuditLogs(1, 100);
   }, [fetchUsers, fetchRoles, fetchAuditLogs]);
 
@@ -151,7 +155,9 @@ export function AdminDashboard() {
             <button
               className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
               onClick={() => {
-                fetchRoles();
+                if (hasPermission(Permission.ROLE_READ)) {
+                  fetchRoles();
+                }
                 setShowCreateModal(true);
               }}
             >

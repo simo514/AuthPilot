@@ -3,8 +3,10 @@ import { Shield, Plus, Edit2, Trash2, ToggleRight } from 'lucide-react';
 import { useRoleStore } from '../../store/useRoleStore';
 import { Role } from '../../types/role.types';
 import { Permission } from '../../types/auth.types';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export function RoleManagement() {
+  const { hasPermission } = usePermissions();
   const { roles, fetchRoles, status, error, fetchPermissions, permissions, createRole, deleteRole, toggleRoleStatus, updateRolePermissions, updateRole } = useRoleStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
@@ -19,7 +21,9 @@ export function RoleManagement() {
   }, [showCreateModal, fetchPermissions]);
 
   useEffect(() => {
-    fetchRoles();
+    if (hasPermission(Permission.ROLE_READ)) {
+      fetchRoles();
+    }
   }, [fetchRoles]);
 
     // Converts 'user:create' to 'Create User', 'role:update' to 'Update Role', etc.
