@@ -160,4 +160,67 @@ export class UsersController {
     }
     return { message: 'User deleted successfully' };
   }
+
+  // Organization-related endpoints
+  @Patch(':uuid/organization')
+  @RequirePermissions(Permission.ORGANIZATION_MANAGE_USERS)
+  @HttpCode(HttpStatus.OK)
+  async assignUserToOrganization(
+    @Param('uuid') uuid: string,
+    @Body('organizationId') organizationId: string,
+  ): Promise<{ message: string }> {
+    this.logger.log(`Assigning user ${uuid} to organization ${organizationId}`);
+    await this.usersService.assignUserToOrganization(uuid, organizationId);
+    return { message: 'User assigned to organization successfully' };
+  }
+
+  @Delete(':uuid/organization')
+  @RequirePermissions(Permission.ORGANIZATION_MANAGE_USERS)
+  @HttpCode(HttpStatus.OK)
+  async removeUserFromOrganization(@Param('uuid') uuid: string): Promise<{ message: string }> {
+    this.logger.log(`Removing user ${uuid} from organization`);
+    await this.usersService.removeUserFromOrganization(uuid);
+    return { message: 'User removed from organization successfully' };
+  }
+
+  @Get('organization/:organizationId/users')
+  @RequirePermissions(Permission.ORGANIZATION_READ)
+  async getUsersByOrganization(
+    @Param('organizationId') organizationId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    this.logger.log(`GET /users/organization/${organizationId}/users - Fetching users`);
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = parseInt(limit || '10', 10);
+
+    const result = await this.usersService.getUsersByOrganization(organizationId, pageNum, limitNum);
+
+    return {
+      users: plainToInstance(UserResponseDto, result.users, { excludeExtraneousValues: true }),
+      total: result.total,
+      page: result.page,
+      totalPages: result.totalPages,
+    };
+  }
+
+  @Get('unassigned/list')
+  @RequirePermissions(Permission.ORGANIZATION_MANAGE_USERS)
+  async getUnassignedUsers(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    this.logger.log('GET /users/unassigned/list - Fetching unassigned users');
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = parseInt(limit || '10', 10);
+
+    const result = await this.usersService.getUnassignedUsers(pageNum, limitNum);
+
+    return {
+      users: plainToInstance(UserResponseDto, result.users, { excludeExtraneousValues: true }),
+      total: result.total,
+      page: result.page,
+      totalPages: result.totalPages,
+    };
+  }
 }

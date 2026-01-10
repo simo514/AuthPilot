@@ -31,6 +31,9 @@ export class UserResponseDto {
   fullName: string;
 
   @Expose()
+  organizationId: string | null;
+
+  @Expose()
   @Type(() => UserRoleResponseDto)
   roleId: UserRoleResponseDto;
 

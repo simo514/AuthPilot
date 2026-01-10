@@ -4,10 +4,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { Permission } from './enums/permission.enum';
+import { TenantContextService } from '../organizations/tenant-context.service';
 
 @Injectable()
 export class RolesService {
-  constructor(@InjectModel(Role.name) private roleModel: Model<RoleDocument>) {}
+  constructor(
+    @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    private readonly tenantContext: TenantContextService,
+  ) {}
 
   async createRole(roleData: CreateRoleDto): Promise<Role> {
     const createdRole = new this.roleModel(roleData);
@@ -32,7 +36,15 @@ export class RolesService {
 
   async getRoles(): Promise<Role[]> {
     try {
-      return this.roleModel.find().exec();
+      const filter: any = {};
+      
+      // Filter by organization from tenant context
+      const organizationId = this.tenantContext.getOrganizationId();
+      if (organizationId) {
+        filter.organizationId = organizationId;
+      }
+      
+      return this.roleModel.find(filter).exec();
     } catch (err) {
       throw new InternalServerErrorException('Failed to fetch roles');
     }

@@ -15,7 +15,7 @@ export function UserManagement() {
   const { user: currentUser } = useAuthStore();
   const isManager = useIsManager();
   const { hasPermission } = usePermissions();
-  const { users, total, totalPages, fetchUsers, deleteUser, status, error, updateUser, createUser } = useUserStore();
+  const { users, total, totalPages, fetchUsers, deleteUser, status, updateUser, createUser } = useUserStore();
   const { roles, fetchRoles } = useRoleStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -214,12 +214,6 @@ export function UserManagement() {
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     Loading users...
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-red-500">
-                    {error}
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (

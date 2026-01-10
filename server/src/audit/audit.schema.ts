@@ -14,6 +14,14 @@ export class Audit {
   uuid: string;
 
   @Prop({
+    type: String,
+    required: false,
+    default: null,
+    index: true,
+  })
+  organizationId?: string | null;
+
+  @Prop({
     type: MongooseSchema.Types.Mixed,
     required: false,
   })
@@ -53,3 +61,9 @@ export class Audit {
 }
 
 export const AuditSchema = SchemaFactory.createForClass(Audit);
+
+// Compound indexes for multi-tenancy and common queries
+AuditSchema.index({ organizationId: 1, createdAt: -1 }); // Organization audit logs by date
+AuditSchema.index({ organizationId: 1, action: 1 }); // Filter by org and action
+AuditSchema.index({ organizationId: 1, status: 1 }); // Filter by org and status
+AuditSchema.index({ createdAt: -1 }); // Sort by date

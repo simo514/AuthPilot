@@ -5,6 +5,9 @@ export class AuditResponseDto {
   uuid: string;
 
   @Expose()
+  organizationId?: string | null;
+
+  @Expose()
   user?: Record<string, any>;
 
   @Expose()

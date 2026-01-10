@@ -3,7 +3,7 @@ import { Calendar, Filter, Download, Search, User, Shield, Activity, ChevronLeft
 import { useAuditStore } from '../../store/useAuditStore';
 
 export function AuditLogs() {
-  const { logs, total, totalPages, loading, error, fetchLogs } = useAuditStore();
+  const { logs, total, totalPages, loading, fetchLogs } = useAuditStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterAction, setFilterAction] = useState('all');
@@ -165,15 +165,8 @@ export function AuditLogs() {
         </div>
       )}
 
-      {/* Error State */}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 p-4">
-          <p className="text-red-800 dark:text-red-400">Error: {error}</p>
-        </div>
-      )}
-
       {/* Logs Table */}
-      {!loading && !error && (
+      {!loading && (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -327,7 +320,7 @@ export function AuditLogs() {
       </div>
       )}
 
-      {!loading && !error && filteredLogs.length === 0 && (
+      {!loading  && filteredLogs.length === 0 && (
         <div className="text-center py-12">
           <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 dark:text-gray-400">No audit logs found matching your criteria.</p>

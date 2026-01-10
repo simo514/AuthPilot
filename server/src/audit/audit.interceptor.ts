@@ -15,6 +15,12 @@ export class AuditInterceptor implements NestInterceptor {
     if (cleanUrl.includes('/auth/login')) return 'Login';
     if (cleanUrl.includes('/auth/register')) return 'Registration';
 
+    // Google OAuth actions
+    if (cleanUrl.includes('/auth/google')) {
+      if (method === 'GET') return 'Google Login';
+      if (method === 'POST') return 'Google OAuth Callback';
+    }
+
     // User actions
     if (cleanUrl.match(/\/users\/[^/]+$/) && method === 'PATCH') return 'Update User';
     if (cleanUrl.match(/\/users\/[^/]+$/) && method === 'DELETE') return 'Delete User';
@@ -29,6 +35,13 @@ export class AuditInterceptor implements NestInterceptor {
 
     // Audit actions
     if (cleanUrl.includes('/audit')) return 'View Audit Logs';
+
+    // Organization actions
+    if (cleanUrl.match(/\/organizations\/[^/]+$/) && method === 'GET') return 'View Organization';
+    if (cleanUrl.match(/\/organizations\/[^/]+$/) && method === 'PATCH') return 'Update Organization';
+    if (cleanUrl.match(/\/organizations\/[^/]+$/) && method === 'DELETE') return 'Delete Organization';
+    if (cleanUrl === '/organizations' && method === 'GET') return 'List Organizations';
+    if (cleanUrl === '/organizations' && method === 'POST') return 'Create Organization';
 
     // Default fallback
     return `${method} ${cleanUrl}`;
@@ -117,6 +130,7 @@ export class AuditInterceptor implements NestInterceptor {
             ipAddress,
             'success',
             userObject,
+            userObject?.organizationId,
           );
         },
         error: (error) => {
@@ -141,6 +155,7 @@ export class AuditInterceptor implements NestInterceptor {
             ipAddress,
             'failed',
             userObject,
+            userObject?.organizationId,
           );
         },
       }),

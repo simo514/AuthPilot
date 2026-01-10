@@ -7,7 +7,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 
 export function RoleManagement() {
   const { hasPermission } = usePermissions();
-  const { roles, fetchRoles, status, error, fetchPermissions, permissions, createRole, deleteRole, toggleRoleStatus, updateRolePermissions, updateRole } = useRoleStore();
+  const { roles, fetchRoles, status, fetchPermissions, permissions, createRole, deleteRole, toggleRoleStatus, updateRolePermissions, updateRole } = useRoleStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [deletingRole, setDeletingRole] = useState<Role | null>(null);
@@ -52,8 +52,6 @@ export function RoleManagement() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {status === 'loading' ? (
           <div className="col-span-full text-center text-gray-500 dark:text-gray-400 py-8">Loading roles...</div>
-        ) : error ? (
-          <div className="col-span-full text-center text-red-500 py-8">{error}</div>
         ) : roles.length === 0 ? (
           <div className="col-span-full text-center text-gray-500 dark:text-gray-400 py-8">No roles found</div>
         ) : (

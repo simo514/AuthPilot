@@ -16,8 +16,15 @@ export class User {
   uuid: string;
 
   @Prop({
+    type: String,
+    required: false,
+    default: null,
+    index: true,
+  })
+  organizationId: string | null;
+
+  @Prop({
     required: true,
-    unique: true,
     lowercase: true,
     trim: true,
     index: true,
@@ -118,7 +125,11 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-// Compound indexes for common queries
+// Compound indexes for common queries and multi-tenancy
+UserSchema.index({ organizationId: 1, email: 1 }, { unique: true }); // Email unique per organization
+UserSchema.index({ organizationId: 1, status: 1 }); // Filter users by org and status
+UserSchema.index({ organizationId: 1, role: 1 }); // Filter users by org and role
+UserSchema.index({ organizationId: 1, department: 1 }); // Filter users by org and department
 UserSchema.index({ status: 1, role: 1 }); // Filter active users by role
 UserSchema.index({ department: 1, status: 1 }); // Filter users by department
 UserSchema.index({ createdAt: -1 }); // Sort by registration date

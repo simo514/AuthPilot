@@ -142,6 +142,7 @@ export class AuthService {
         email: user.email,
         sub: user.uuid,
         role: user.role,
+        organizationId: user.organizationId,
       };
       const newAccessToken = this.jwtService.sign(payload);
 
@@ -204,6 +205,7 @@ export class AuthService {
       email: existingUser.email,
       sub: existingUser.uuid,
       role: existingUser.role,
+      organizationId: existingUser.organizationId,
     };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
