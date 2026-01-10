@@ -5,11 +5,12 @@ import { useUserStore } from '../../store/useUserStore';
 
 export function ManagerDashboard() {
   const { user: currentUser } = useAuthStore();
-  const { users: teamMembers, fetchMyTeamMembers } = useUserStore();
+  const { users: teamMembers, fetchUsers } = useUserStore();
 
   useEffect(() => {
-    fetchMyTeamMembers();
-  }, [fetchMyTeamMembers]);
+    // Tenant context automatically filters to show only organization users
+    fetchUsers();
+  }, [fetchUsers]);
 
   // Count team members
   const teamMembersCount = teamMembers.length;

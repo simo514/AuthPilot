@@ -12,6 +12,9 @@ import { AuditLogs } from './components/Audit/AuditLogs';
 import OrganizationList from './components/Organizations/OrganizationList';
 import OrganizationForm from './components/Organizations/OrganizationForm';
 import OrganizationDetails from './components/Organizations/OrganizationDetails';
+import ProjectList from './components/Projects/ProjectList';
+import ProjectForm from './components/Projects/ProjectForm';
+import ProjectDetails from './components/Projects/ProjectDetails';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { RoleGuard } from './components/Auth/RoleGuard';
 import { PermissionGuard } from './components/Auth/PermissionGuard';
@@ -162,6 +165,52 @@ function App() {
                 requireAll={false}
               >
                 <OrganizationDetails />
+              </PermissionGuard>
+            } 
+          />
+
+          {/* Project Routes */}
+          <Route 
+            path="projects" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.PROJECT_LIST]}
+                requireAll={false}
+              >
+                <ProjectList />
+              </PermissionGuard>
+            } 
+          />
+          <Route 
+            path="projects/new" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.PROJECT_CREATE]}
+                requireAll={false}
+              >
+                <ProjectForm />
+              </PermissionGuard>
+            } 
+          />
+          <Route 
+            path="projects/edit/:uuid" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.PROJECT_UPDATE]}
+                requireAll={false}
+              >
+                <ProjectForm />
+              </PermissionGuard>
+            } 
+          />
+          <Route 
+            path="projects/:uuid" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.PROJECT_READ]}
+                requireAll={false}
+              >
+                <ProjectDetails />
               </PermissionGuard>
             } 
           />

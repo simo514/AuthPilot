@@ -44,8 +44,6 @@ interface UserState {
   setFilters: (filters: UserFilters) => void;
   clearFilters: () => void;
   clearError: () => void;
-  fetchMyTeamMembers: () => Promise<void>;
-  fetchUsersByManagerId: (managerId: string) => Promise<void>;
   fetchManagers: () => Promise<void>;
 }
 
@@ -159,42 +157,6 @@ export const useUserStore = create<UserState>()(
             error: 'Failed to delete user.',
           });
           toast.error(extractApiErrorMessage(error, 'Failed to delete user.'));
-        }
-      },
-
-      // For managers: Fetch their own team members using JWT
-      fetchMyTeamMembers: async () => {
-        set({ status: RequestStatus.LOADING, error: null });
-        try {
-          const response = await api.get<UserListItem[]>('/users/my-team');
-          set({
-            users: response.data,
-            status: RequestStatus.SUCCESS,
-            error: null,
-          });
-        } catch (error) {
-          set({
-            status: RequestStatus.ERROR,
-            error: 'Failed to fetch team members.',
-          });
-        }
-      },
-
-      // For admins: Fetch users by any manager ID
-      fetchUsersByManagerId: async (managerId) => {
-        set({ status: RequestStatus.LOADING, error: null });
-        try {
-          const response = await api.get<UserListItem[]>(`/users/users-by-manager/${managerId}`);
-          set({
-            users: response.data,
-            status: RequestStatus.SUCCESS,
-            error: null,
-          });
-        } catch (error) {
-          set({
-            status: RequestStatus.ERROR,
-            error: 'Failed to fetch users by manager ID.',
-          });
         }
       },
 

@@ -18,6 +18,7 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { RoleResponseDto } from './dto/role-response.dto';
 import { plainToInstance } from 'class-transformer';
+import { TenantContextInterceptor } from '../organizations/tenant-context.interceptor';
 import { Permission } from './enums/permission.enum';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { AuthGuard } from '@nestjs/passport';
@@ -26,6 +27,7 @@ import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
 @Controller('roles')
 @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+@UseInterceptors(TenantContextInterceptor)
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 

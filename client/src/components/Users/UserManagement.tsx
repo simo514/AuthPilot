@@ -36,14 +36,8 @@ export function UserManagement() {
   }, [searchTerm]);
 
   useEffect(() => {
-    if (isManager && currentUser?.uuid) {
-      // For managers, still fetch team members (no pagination yet)
-      useUserStore.getState().fetchMyTeamMembers();
-    } else {
-      // For admins, use pagination and search
-      fetchUsers(currentPage, itemsPerPage, debouncedSearch);
-    }
-  }, [currentPage, itemsPerPage, debouncedSearch, currentUser, isManager]);
+    fetchUsers(currentPage, itemsPerPage, debouncedSearch);
+  }, [currentPage, itemsPerPage, debouncedSearch, fetchUsers]);
 
   useEffect(() => {
     // Only fetch roles if user has permission to read roles

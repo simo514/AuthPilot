@@ -25,6 +25,7 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { UseInterceptors } from '@nestjs/common';
 import { AuditInterceptor } from '../audit/audit.interceptor';
+import { TenantContextInterceptor } from '../organizations/tenant-context.interceptor';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -32,6 +33,7 @@ import { Permission } from '../roles/enums/permission.enum';
 
 @Controller('users')
 @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+@UseInterceptors(TenantContextInterceptor)
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
@@ -59,18 +61,8 @@ export class UsersController {
     return plainToInstance(UserResponseDto, managers, { excludeExtraneousValues: true });
   }
 
-  @Get('my-team')
-  @HttpCode(HttpStatus.OK)
-  async getMyTeamMembers(@Request() req): Promise<UserResponseDto[]> {
-    const currentUser = req.user;
-
-    if (!currentUser) {
-      throw new NotFoundException('User not authenticated');
-    }
-
-    const users = await this.usersService.getMyTeamMembers(currentUser.uuid);
-    return plainToInstance(UserResponseDto, users, { excludeExtraneousValues: true });
-  }
+  // Removed: my-team endpoint - use GET /users instead
+  // Tenant context automatically filters by organization
 
   @Patch('password')
   @UsePipes(new ValidationPipe({ transform: true }))
@@ -222,5 +214,24 @@ export class UsersController {
       page: result.page,
       totalPages: result.totalPages,
     };
+  }
+
+  @Post(':uuid/project/:projectUuid')
+  @RequirePermissions(Permission.PROJECT_MANAGE_USERS)
+  async assignUserToProject(
+    @Param('uuid') uuid: string,
+    @Param('projectUuid') projectUuid: string,
+  ) {
+    this.logger.log(`POST /users/${uuid}/project/${projectUuid} - Assigning user to project`);
+    const user = await this.usersService.assignUserToProject(uuid, projectUuid);
+    return plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true });
+  }
+
+  @Delete(':uuid/project')
+  @RequirePermissions(Permission.PROJECT_MANAGE_USERS)
+  async removeUserFromProject(@Param('uuid') uuid: string) {
+    this.logger.log(`DELETE /users/${uuid}/project - Removing user from project`);
+    const user = await this.usersService.removeUserFromProject(uuid);
+    return plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true });
   }
 }

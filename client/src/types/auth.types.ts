@@ -132,4 +132,12 @@ export enum Permission {
   ORGANIZATION_DELETE = 'organization:delete',
   ORGANIZATION_LIST = 'organization:list',
   ORGANIZATION_MANAGE_USERS = 'organization:manage_users',
+
+  // Project Management
+  PROJECT_CREATE = 'project:create',
+  PROJECT_READ = 'project:read',
+  PROJECT_UPDATE = 'project:update',
+  PROJECT_DELETE = 'project:delete',
+  PROJECT_LIST = 'project:list',
+  PROJECT_MANAGE_USERS = 'project:manage_users',
 }

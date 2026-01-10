@@ -24,6 +24,14 @@ export class User {
   organizationId: string | null;
 
   @Prop({
+    type: String,
+    required: false,
+    default: null,
+    index: true,
+  })
+  projectId: string | null;
+
+  @Prop({
     required: true,
     lowercase: true,
     trim: true,

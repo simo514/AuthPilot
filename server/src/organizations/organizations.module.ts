@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { OrganizationsService } from './organizations.service';
 import { OrganizationsController } from './organizations.controller';
@@ -12,7 +12,7 @@ import { AuditModule } from '../audit/audit.module';
     MongooseModule.forFeature([
       { name: Organization.name, schema: OrganizationSchema },
     ]),
-    AuditModule,
+    forwardRef(() => AuditModule),
   ],
   controllers: [OrganizationsController],
   providers: [OrganizationsService, TenantContextService, TenantContextInterceptor],

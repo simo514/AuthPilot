@@ -1,14 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Audit, AuditDocument } from './audit.schema';
 import { Model } from 'mongoose';
+import { TenantContextService } from '../organizations/tenant-context.service';
 
-@Injectable()
+@Injectable({ scope: Scope.DEFAULT })
 export class AuditService {
   private isCleanupRunning = false;
 
-  constructor(@InjectModel(Audit.name) private auditModel: Model<AuditDocument>) {}
+  constructor(
+    @InjectModel(Audit.name) private auditModel: Model<AuditDocument>,
+    private readonly tenantContext: TenantContextService,
+  ) {}
 
   async createAudit(
     action: string,
@@ -31,6 +35,9 @@ export class AuditService {
     return newAudit.save();
   }
 
+  /**
+   * @deprecated Use getAllAudits() instead - tenant context automatically filters by organization
+   */
   async getAuditsByManagerId(
     managerId: string,
     page: number = 1,
@@ -70,6 +77,12 @@ export class AuditService {
     search?: string,
   ): Promise<{ audits: Audit[]; total: number; page: number; totalPages: number }> {
     const query: any = {};
+
+    // Filter by organization from tenant context
+    const organizationId = this.tenantContext.getOrganizationId();
+    if (organizationId) {
+      query.organizationId = organizationId;
+    }
 
     if (search) {
       query.$or = [
@@ -117,7 +130,7 @@ export class AuditService {
     try {
       const totalCount = await this.auditModel.countDocuments();
       if (totalCount > 100) {
-        const deleteCount = totalCount - 50;
+        const deleteCount = totalCount - 100;
         const oldestLogs = await this.auditModel
           .find()
           .sort({ createdAt: 1 })

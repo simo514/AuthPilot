@@ -16,6 +16,7 @@ import { Role, RoleDocument } from '../roles/role.schema';
 import { UserResponseDto } from './dto/user-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { Organization, OrganizationDocument } from '../organizations/organization.schema';
+import { Project } from '../projects/project.schema';
 import { TenantContextService } from '../organizations/tenant-context.service';
 
 @Injectable()
@@ -26,6 +27,7 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @InjectModel(Organization.name) private organizationModel: Model<OrganizationDocument>,
+    @InjectModel(Project.name) private projectModel: Model<Project>,
     private readonly tenantContext: TenantContextService,
   ) {}
 
@@ -171,7 +173,6 @@ export class UsersService {
     const organizationId = this.tenantContext.getOrganizationId();
     if (organizationId) {
       filter.organizationId = organizationId;
-      this.logger.debug(`Filtering users by organizationId: ${organizationId}`);
     }
 
     if (department) {
@@ -272,24 +273,6 @@ export class UsersService {
     } catch (error) {
       this.logger.error('Failed to fetch managers', error.stack);
       throw new InternalServerErrorException('Failed to fetch managers');
-    }
-  }
-
-  // For managers: Get their own team members using their UUID
-  async getMyTeamMembers(managerUuid: string): Promise<Omit<User, 'password'>[]> {
-    try {
-      const users = await this.userModel
-        .find({ managerId: managerUuid })
-        .select('-password')
-        .populate('roleId', 'name permissions isActive level -_id')
-        .lean()
-        .exec();
-
-      this.logger.log(`Retrieved ${users.length} team members for manager: ${managerUuid}`);
-      return users;
-    } catch (error) {
-      this.logger.error(`Failed to fetch team members for manager: ${managerUuid}`, error.stack);
-      throw new InternalServerErrorException('Failed to fetch team members');
     }
   }
 
@@ -547,5 +530,59 @@ export class UsersService {
       this.logger.error('Failed to fetch unassigned users', error.stack);
       throw new InternalServerErrorException('Failed to fetch unassigned users');
     }
+  }
+
+  async assignUserToProject(userUuid: string, projectUuid: string): Promise<UserResponseDto> {
+    const user = await this.userModel.findOne({ uuid: userUuid }).populate('roleId').exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const project = await this.projectModel.findOne({ uuid: projectUuid }).exec();
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // If user already has a project, remove them from it first
+    if (user.projectId) {
+      await this.removeUserFromProject(userUuid);
+    }
+
+    user.projectId = project._id.toString();
+    await user.save();
+
+    // Increment project's currentUsers count
+    await this.projectModel.updateOne(
+      { uuid: projectUuid },
+      { $inc: { currentUsers: 1 } }
+    );
+
+    return plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true });
+  }
+
+  async removeUserFromProject(userUuid: string): Promise<UserResponseDto> {
+    const user = await this.userModel.findOne({ uuid: userUuid }).populate('roleId').exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.projectId) {
+      throw new BadRequestException('User is not assigned to any project');
+    }
+
+    const projectId = user.projectId;
+    user.projectId = null;
+    await user.save();
+
+    // Decrement project's currentUsers count
+    const project = await this.projectModel.findById(projectId).exec();
+    if (project) {
+      await this.projectModel.updateOne(
+        { _id: projectId },
+        { $inc: { currentUsers: -1 } }
+      );
+    }
+
+    return plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true });
   }
 }
