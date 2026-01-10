@@ -17,6 +17,7 @@ export class AuditService {
     ipAddress?: string,
     status: 'success' | 'failed' = 'success',
     user?: Record<string, any>,
+    organizationId?: string | null,
   ): Promise<Audit> {
     const newAudit = new this.auditModel({
       action,
@@ -25,6 +26,7 @@ export class AuditService {
       ipAddress,
       status,
       user,
+      organizationId,
     });
     return newAudit.save();
   }

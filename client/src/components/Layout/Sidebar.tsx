@@ -9,7 +9,8 @@ import {
   FileText, 
   Moon, 
   Sun,
-  LogOut
+  LogOut,
+  Building2
 } from 'lucide-react';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Permission } from '../../types/auth.types';
@@ -36,10 +37,12 @@ export function Sidebar({ activeTab: _activeTab, setActiveTab }: SidebarProps) {
   const canViewUsers = hasPermission(Permission.USER_LIST) || hasPermission(Permission.USER_READ);
   const canViewRoles = hasPermission(Permission.ROLE_READ) || hasPermission(Permission.ROLE_LIST);
   const canViewAudit = hasPermission(Permission.AUDIT_READ) || hasPermission(Permission.AUDIT_LIST);
+  const canViewOrganizations = hasPermission(Permission.ORGANIZATION_LIST) || hasPermission(Permission.ORGANIZATION_READ);
 
   // Dynamically build menu
   const menuItems = [
     ...baseItems,
+    ...(canViewOrganizations ? [{ id: 'organizations', label: 'Organizations', icon: Building2, path: '/organizations' }] : []),
     ...(canViewUsers ? [{ id: 'users', label: 'Users', icon: Users, path: '/users' }] : []),
     ...(canViewRoles ? [{ id: 'roles', label: 'Roles', icon: Shield, path: '/roles' }] : []),
     ...(canViewAudit ? [{ id: 'audit', label: 'Audit Logs', icon: FileText, path: '/audit' }] : []),

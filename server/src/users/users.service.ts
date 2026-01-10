@@ -15,6 +15,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { Role, RoleDocument } from '../roles/role.schema';
 import { UserResponseDto } from './dto/user-response.dto';
 import { plainToInstance } from 'class-transformer';
+import { Organization, OrganizationDocument } from '../organizations/organization.schema';
+import { TenantContextService } from '../organizations/tenant-context.service';
 
 @Injectable()
 export class UsersService {
@@ -23,10 +25,12 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    @InjectModel(Organization.name) private organizationModel: Model<OrganizationDocument>,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   async createUser(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    const { fullName, email, password, roleId, role, department, managerId } = createUserDto;
+    const { fullName, email, password, roleId, role, department, managerId, organizationId } = createUserDto;
 
     // If role looks like a MongoDB ObjectId (24 hex chars), treat it as roleId
     const isRoleAnObjectId = role && /^[0-9a-fA-F]{24}$/.test(role);
@@ -68,6 +72,7 @@ export class UsersService {
       roleId: finalRoleId,
       role: roleName,
       managerId,
+      ...(organizationId && { organizationId }),
       ...(department && { department }),
     });
     
@@ -161,6 +166,13 @@ export class UsersService {
     status?: string,
   ): Promise<{ users: Omit<User, 'password'>[]; total: number; page: number; totalPages: number }> {
     const filter: any = {};
+
+    // Filter by organization from tenant context
+    const organizationId = this.tenantContext.getOrganizationId();
+    if (organizationId) {
+      filter.organizationId = organizationId;
+      this.logger.debug(`Filtering users by organizationId: ${organizationId}`);
+    }
 
     if (department) {
       filter.department = department;
@@ -369,6 +381,7 @@ export class UsersService {
       role: defaultRole.name.toLowerCase(),
       googleId,
       picture,
+      organizationId: null,
     });
 
     try {
@@ -396,6 +409,143 @@ export class UsersService {
     } catch (error) {
       this.logger.error(`Failed to update Google ID for user: ${uuid}`, error.stack);
       throw new InternalServerErrorException('Failed to link Google account');
+    }
+  }
+
+  async assignUserToOrganization(userUuid: string, organizationId: string): Promise<void> {
+    try {
+      const user = await this.userModel.findOne({ uuid: userUuid }).exec();
+      
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Check if organization exists
+      const organization = await this.organizationModel.findOne({ uuid: organizationId }).exec();
+      if (!organization) {
+        throw new NotFoundException('Organization not found');
+      }
+
+      // Check if user is already assigned to this organization
+      if (user.organizationId === organizationId) {
+        this.logger.warn(`User ${userUuid} is already assigned to organization ${organizationId}`);
+        return;
+      }
+
+      // If user was previously assigned to a different organization, decrement that org's count
+      if (user.organizationId) {
+        await this.organizationModel.updateOne(
+          { uuid: user.organizationId },
+          { $inc: { currentUsers: -1 } },
+        ).exec();
+      }
+
+      // Assign user to new organization
+      user.organizationId = organizationId;
+      await user.save();
+
+      // Increment the organization's currentUsers count
+      await this.organizationModel.updateOne(
+        { uuid: organizationId },
+        { $inc: { currentUsers: 1 } },
+      ).exec();
+      
+      this.logger.log(`User ${userUuid} assigned to organization: ${organizationId}`);
+    } catch (error) {
+      this.logger.error(`Failed to assign user to organization: ${userUuid}`, error.stack);
+      throw error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to assign user to organization');
+    }
+  }
+
+  async removeUserFromOrganization(userUuid: string): Promise<void> {
+    try {
+      const user = await this.userModel.findOne({ uuid: userUuid }).exec();
+      
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const previousOrgId = user.organizationId;
+
+      // Remove user from organization
+      user.organizationId = null;
+      await user.save();
+
+      // Decrement the organization's currentUsers count
+      if (previousOrgId) {
+        await this.organizationModel.updateOne(
+          { uuid: previousOrgId },
+          { $inc: { currentUsers: -1 } },
+        ).exec();
+      }
+      
+      this.logger.log(`User ${userUuid} removed from organization`);
+    } catch (error) {
+      this.logger.error(`Failed to remove user from organization: ${userUuid}`, error.stack);
+      throw error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to remove user from organization');
+    }
+  }
+
+  async getUsersByOrganization(
+    organizationId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{ users: Omit<User, 'password'>[]; total: number; page: number; totalPages: number }> {
+    try {
+      const filter = { organizationId };
+      const total = await this.userModel.countDocuments(filter);
+      const users = await this.userModel
+        .find(filter)
+        .select('-password')
+        .populate('roleId', 'name permissions isActive level')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean()
+        .exec();
+
+      return {
+        users,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch users by organization', error.stack);
+      throw new InternalServerErrorException('Failed to fetch users by organization');
+    }
+  }
+
+  async getUnassignedUsers(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{ users: Omit<User, 'password'>[]; total: number; page: number; totalPages: number }> {
+    try {
+      const filter = { $or: [{ organizationId: null }, { organizationId: { $exists: false } }] };
+      const total = await this.userModel.countDocuments(filter);
+      const users = await this.userModel
+        .find(filter)
+        .select('-password')
+        .populate('roleId', 'name permissions isActive level')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean()
+        .exec();
+
+      return {
+        users,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch unassigned users', error.stack);
+      throw new InternalServerErrorException('Failed to fetch unassigned users');
     }
   }
 }

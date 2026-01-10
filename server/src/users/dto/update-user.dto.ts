@@ -5,6 +5,9 @@ import { UserStatus } from '../enums/user-status.enum';
 export class UpdateUserDto {
   @IsOptional()
   @IsString()
+  organizationId?: string;
+  @IsOptional()
+  @IsString()
   fullName?: string;
 
   @IsOptional()

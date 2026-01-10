@@ -4,9 +4,14 @@ import { RolesController } from './roles.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Role, RoleSchema } from './role.schema';
 import { AuditModule } from '../audit/audit.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Role.name, schema: RoleSchema }]), AuditModule],
+  imports: [
+    MongooseModule.forFeature([{ name: Role.name, schema: RoleSchema }]),
+    AuditModule,
+    OrganizationsModule, // Import to get TenantContextService
+  ],
   providers: [RolesService],
   controllers: [RolesController],
   exports: [MongooseModule],

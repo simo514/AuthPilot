@@ -3,6 +3,10 @@ import { UserDepartment } from '../enums/user-department.enum';
 import { UserStatus } from '../enums/user-status.enum';
 
 export class CreateUserDto {
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
   @IsString()
   @IsNotEmpty()
   fullName: string;

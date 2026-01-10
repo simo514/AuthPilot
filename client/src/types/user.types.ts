@@ -5,6 +5,7 @@
 import { UserDepartment, UserRole, UserStatus, RoleInfo } from './auth.types';
 
 export interface CreateUserDto {
+  organizationId?: string;
   fullName: string;
   email: string;
   password: string;
@@ -14,6 +15,7 @@ export interface CreateUserDto {
 }
 
 export interface UpdateUserDto {
+  organizationId?: string;
   fullName?: string;
   email?: string;
   roleId?: string;
@@ -24,6 +26,7 @@ export interface UpdateUserDto {
 
 export interface UserListItem {
   uuid: string;
+  organizationId: string | null;
   email: string;
   fullName: string;
   roleId: RoleInfo;

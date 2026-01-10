@@ -9,6 +9,9 @@ import { UserManagement } from './components/Users/UserManagement';
 import { Settings } from './components/Settings/Settings';
 import { RoleManagement } from './components/Roles/RoleManagement';
 import { AuditLogs } from './components/Audit/AuditLogs';
+import OrganizationList from './components/Organizations/OrganizationList';
+import OrganizationForm from './components/Organizations/OrganizationForm';
+import OrganizationDetails from './components/Organizations/OrganizationDetails';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { RoleGuard } from './components/Auth/RoleGuard';
 import { PermissionGuard } from './components/Auth/PermissionGuard';
@@ -116,6 +119,53 @@ function App() {
               </PermissionGuard>
             } 
           />
+
+          {/* Organization Routes */}
+          <Route 
+            path="organizations" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.ORGANIZATION_LIST]}
+                requireAll={false}
+              >
+                <OrganizationList />
+              </PermissionGuard>
+            } 
+          />
+          <Route 
+            path="organizations/new" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.ORGANIZATION_CREATE]}
+                requireAll={false}
+              >
+                <OrganizationForm />
+              </PermissionGuard>
+            } 
+          />
+          <Route 
+            path="organizations/edit/:uuid" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.ORGANIZATION_UPDATE]}
+                requireAll={false}
+              >
+                <OrganizationForm />
+              </PermissionGuard>
+            } 
+          />
+          <Route 
+            path="organizations/:uuid" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.ORGANIZATION_READ]}
+                requireAll={false}
+              >
+                <OrganizationDetails />
+              </PermissionGuard>
+            } 
+          />
+
           <Route 
             path="roles" 
             element={
