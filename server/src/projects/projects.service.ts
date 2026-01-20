@@ -8,6 +8,7 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
 import { Organization } from '../organizations/organization.schema';
 import { User } from '../users/user.schema';
+import { Task } from '../tasks/task.schema';
 import { TenantContextService } from '../organizations/tenant-context.service';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class ProjectsService {
     @InjectModel(Project.name) private projectModel: Model<Project>,
     @InjectModel(Organization.name) private organizationModel: Model<Organization>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Task.name) private taskModel: Model<Task>,
     private readonly tenantContext: TenantContextService,
   ) {}
 
@@ -108,12 +110,16 @@ export class ProjectsService {
       throw new NotFoundException('Project not found');
     }
 
-    // Check if project has assigned users
-    const usersCount = await this.userModel.countDocuments({ projectId: project._id });
-    if (usersCount > 0) {
-      throw new BadRequestException('Cannot delete project with assigned users. Please reassign or remove users first.');
-    }
+    // Delete all tasks in this project
+    await this.taskModel.deleteMany({ project: project._id });
 
+    // Unlink users from this project (set projectId to null)
+    await this.userModel.updateMany(
+      { projectId: project._id },
+      { $set: { projectId: null } }
+    );
+
+    // Delete the project
     await this.projectModel.deleteOne({ uuid });
     return { message: 'Project deleted successfully' };
   }

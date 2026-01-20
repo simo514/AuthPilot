@@ -48,6 +48,12 @@ export function Login({ onToggleMode }: LoginProps) {
 
         <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-xl rounded-lg">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {(storeError || localError) && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+                <p className="text-sm">{storeError || localError}</p>
+              </div>
+            )}
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Email address
@@ -140,16 +146,6 @@ export function Login({ onToggleMode }: LoginProps) {
                 </Link>
               )}
             </p>
-          </div>
-
-          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Demo accounts:</p>
-            <div className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
-              <p>Admin: admin@example.com</p>
-              <p>Manager: manager@example.com</p>
-              <p>User: user@example.com</p>
-              <p>Password: password</p>
-            </div>
           </div>
         </div>
       </div>

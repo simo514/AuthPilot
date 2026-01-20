@@ -4,6 +4,7 @@ import { useProjectStore } from '../../store/useProjectStore';
 import { ArrowLeft, Edit, Users, UserPlus, X, Calendar, Tag } from 'lucide-react';
 import { PermissionGuard } from '../Auth/PermissionGuard';
 import { Permission } from '../../types/auth.types';
+import TaskList from '../Tasks/TaskList';
 
 export default function ProjectDetails() {
   const navigate = useNavigate();
@@ -230,6 +231,9 @@ export default function ProjectDetails() {
           )}
         </div>
       </div>
+
+      {/* Tasks Section */}
+      {uuid && <TaskList projectUuid={uuid} />}
 
       {/* Assign User Modal */}
       {showAssignModal && (

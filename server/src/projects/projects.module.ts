@@ -5,6 +5,7 @@ import { ProjectsService } from './projects.service';
 import { Project, ProjectSchema } from './project.schema';
 import { Organization, OrganizationSchema } from '../organizations/organization.schema';
 import { User, UserSchema } from '../users/user.schema';
+import { Task, TaskSchema } from '../tasks/task.schema';
 import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
@@ -13,6 +14,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
       { name: Project.name, schema: ProjectSchema },
       { name: Organization.name, schema: OrganizationSchema },
       { name: User.name, schema: UserSchema },
+      { name: Task.name, schema: TaskSchema },
     ]),
     OrganizationsModule,
   ],

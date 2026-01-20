@@ -48,4 +48,12 @@ export enum Permission {
   PROJECT_DELETE = 'project:delete',
   PROJECT_LIST = 'project:list',
   PROJECT_MANAGE_USERS = 'project:manage_users',
+
+  // Task Management
+  TASK_CREATE = 'task:create',
+  TASK_READ = 'task:read',
+  TASK_UPDATE = 'task:update',
+  TASK_DELETE = 'task:delete',
+  TASK_LIST = 'task:list',
+  TASK_ASSIGN = 'task:assign',
 }

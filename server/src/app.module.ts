@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { ProjectsModule } from './projects/projects.module';
+import { TasksModule } from './tasks/tasks.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
 
 @Module({
@@ -50,6 +51,7 @@ import { RedisModule } from '@nestjs-modules/ioredis';
     MongooseModule.forRoot(process.env.DB_CONNECTION),
     OrganizationsModule,
     ProjectsModule,
+    TasksModule,
     UsersModule,
     RolesModule,
     AuthModule,

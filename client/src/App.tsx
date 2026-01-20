@@ -15,6 +15,7 @@ import OrganizationDetails from './components/Organizations/OrganizationDetails'
 import ProjectList from './components/Projects/ProjectList';
 import ProjectForm from './components/Projects/ProjectForm';
 import ProjectDetails from './components/Projects/ProjectDetails';
+import Tasks from './components/Tasks/Tasks';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { RoleGuard } from './components/Auth/RoleGuard';
 import { PermissionGuard } from './components/Auth/PermissionGuard';
@@ -211,6 +212,32 @@ function App() {
                 requireAll={false}
               >
                 <ProjectDetails />
+              </PermissionGuard>
+            } 
+          />
+
+          {/* Task Routes */}
+          <Route 
+            path="tasks" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.TASK_LIST, Permission.TASK_READ]}
+                requireAll={false}
+              >
+                <Tasks />
+              </PermissionGuard>
+            } 
+          />
+
+          {/* Task Routes */}
+          <Route 
+            path="tasks" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.TASK_LIST, Permission.TASK_READ]}
+                requireAll={false}
+              >
+                <Tasks />
               </PermissionGuard>
             } 
           />

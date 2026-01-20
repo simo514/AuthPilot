@@ -41,6 +41,12 @@ export class UserResponseDto {
   managerId: string;
 
   @Expose()
+  organizationId: string | null;
+
+  @Expose()
+  projectId: string | null;
+
+  @Expose()
   lastLoginAt: Date;
 
   @Expose()

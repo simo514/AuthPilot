@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useOrganizationStore } from '../../store/useOrganizationStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { ArrowLeft, Save } from 'lucide-react';
 import { CreateProjectDto, UpdateProjectDto } from '../../types/project.types';
 
@@ -12,6 +13,7 @@ export default function ProjectForm() {
 
   const { currentProject, fetchProjectByUuid, createProject, updateProject } = useProjectStore();
   const { organizations, fetchOrganizations } = useOrganizationStore();
+  const { user } = useAuthStore();
 
   const [formData, setFormData] = useState<CreateProjectDto>({
     name: '',
@@ -27,9 +29,26 @@ export default function ProjectForm() {
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Check if user is a manager (managers should have their org auto-selected)
+  const isManager = user?.role === 'manager';
+  const shouldHideOrgDropdown = isManager && !isEditMode && Boolean(user?.organizationId);
+
+  // Auto-set organization ID from logged-in user for managers
   useEffect(() => {
-    fetchOrganizations({ page: 1, limit: 100 });
-  }, [fetchOrganizations]);
+    if (!isEditMode && user?.organizationId) {
+      setFormData(prev => ({
+        ...prev,
+        organizationId: user.organizationId || '',
+      }));
+    }
+  }, [user?.organizationId, isEditMode]);
+
+  // Only fetch organizations if needed (not for managers creating new projects)
+  useEffect(() => {
+    if (!shouldHideOrgDropdown) {
+      fetchOrganizations({ page: 1, limit: 100 });
+    }
+  }, [shouldHideOrgDropdown, fetchOrganizations]);
 
   useEffect(() => {
     if (isEditMode && uuid) {
@@ -149,25 +168,51 @@ export default function ProjectForm() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Organization *
-              </label>
-              <select
-                required
-                value={formData.organizationId}
-                onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
-                disabled={isEditMode}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">Select Organization</option>
-                {organizations.map((org) => (
-                  <option key={org.uuid} value={org.uuid}>
-                    {org.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {shouldHideOrgDropdown ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Organization
+                </label>
+                <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                  {organizations.find(org => org.uuid === formData.organizationId)?.name || 'Your Organization'}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Projects will be created in your organization
+                </p>
+              </div>
+            ) : isManager && !user?.organizationId ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Organization *
+                </label>
+                <div className="w-full px-4 py-2 border border-yellow-300 dark:border-yellow-600 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300">
+                  You are not assigned to an organization
+                </div>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                  Please contact an administrator to assign you to an organization
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Organization *
+                </label>
+                <select
+                  required
+                  value={formData.organizationId}
+                  onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
+                  disabled={isEditMode}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select Organization</option>
+                  {organizations.map((org) => (
+                    <option key={org.uuid} value={org.uuid}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

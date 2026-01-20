@@ -11,7 +11,8 @@ import {
   Sun,
   LogOut,
   Building2,
-  FolderKanban
+  FolderKanban,
+  CheckSquare
 } from 'lucide-react';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Permission } from '../../types/auth.types';
@@ -40,12 +41,14 @@ export function Sidebar({ activeTab: _activeTab, setActiveTab }: SidebarProps) {
   const canViewAudit = hasPermission(Permission.AUDIT_READ) || hasPermission(Permission.AUDIT_LIST);
   const canViewOrganizations = hasPermission(Permission.ORGANIZATION_LIST) || hasPermission(Permission.ORGANIZATION_READ);
   const canViewProjects = hasPermission(Permission.PROJECT_LIST) || hasPermission(Permission.PROJECT_READ);
+  const canViewTasks = hasPermission(Permission.TASK_LIST) || hasPermission(Permission.TASK_READ);
 
   // Dynamically build menu
   const menuItems = [
     ...baseItems,
     ...(canViewOrganizations ? [{ id: 'organizations', label: 'Organizations', icon: Building2, path: '/organizations' }] : []),
     ...(canViewProjects ? [{ id: 'projects', label: 'Projects', icon: FolderKanban, path: '/projects' }] : []),
+    ...(canViewTasks ? [{ id: 'tasks', label: 'Tasks', icon: CheckSquare, path: '/tasks' }] : []),
     ...(canViewUsers ? [{ id: 'users', label: 'Users', icon: Users, path: '/users' }] : []),
     ...(canViewRoles ? [{ id: 'roles', label: 'Roles', icon: Shield, path: '/roles' }] : []),
     ...(canViewAudit ? [{ id: 'audit', label: 'Audit Logs', icon: FileText, path: '/audit' }] : []),

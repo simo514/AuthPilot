@@ -13,6 +13,9 @@ import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { OrganizationResponseDto } from './dto/organization-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { OrganizationStatus } from './enums/organization-status.enum';
+import { Project } from '../projects/project.schema';
+import { User } from '../users/user.schema';
+import { Task } from '../tasks/task.schema';
 
 @Injectable()
 export class OrganizationsService {
@@ -21,6 +24,12 @@ export class OrganizationsService {
   constructor(
     @InjectModel(Organization.name)
     private organizationModel: Model<OrganizationDocument>,
+    @InjectModel(Project.name)
+    private projectModel: Model<Project>,
+    @InjectModel(User.name)
+    private userModel: Model<User>,
+    @InjectModel(Task.name)
+    private taskModel: Model<Task>,
   ) {}
 
   async create(
@@ -169,11 +178,29 @@ export class OrganizationsService {
   }
 
   async delete(uuid: string): Promise<void> {
-    const result = await this.organizationModel.deleteOne({ uuid }).exec();
+    const organization = await this.organizationModel.findOne({ uuid }).exec();
 
-    if (result.deletedCount === 0) {
+    if (!organization) {
       throw new NotFoundException('Organization not found');
     }
+
+    // Delete all tasks in this organization
+    await this.taskModel.deleteMany({ organization: organization._id }).exec();
+    this.logger.log(`Deleted all tasks for organization: ${uuid}`);
+
+    // Delete all projects in this organization
+    await this.projectModel.deleteMany({ organizationId: organization._id }).exec();
+    this.logger.log(`Deleted all projects for organization: ${uuid}`);
+
+    // Set organizationId to null for all users in this organization
+    await this.userModel.updateMany(
+      { organizationId: organization._id },
+      { $set: { organizationId: null, projectId: null } }
+    ).exec();
+    this.logger.log(`Unlinked all users from organization: ${uuid}`);
+
+    // Finally, delete the organization
+    await this.organizationModel.deleteOne({ uuid }).exec();
 
     this.logger.log(`Organization deleted: ${uuid}`);
   }
