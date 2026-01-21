@@ -1,10 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { randomUUID } from 'crypto';
 import { TaskStatus } from './enums/task-status.enum';
 import { TaskPriority } from './enums/task-priority.enum';
 
 @Schema({ timestamps: true })
 export class Task extends Document {
+  @Prop({
+    default: () => randomUUID(),
+    unique: true,
+    index: true,
+  })
+  uuid: string;
+
   @Prop({ required: true })
   title: string;
 

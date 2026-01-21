@@ -17,6 +17,7 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { Organization, OrganizationDocument } from '../organizations/organization.schema';
 import { Project } from '../projects/project.schema';
+import { Task } from '../tasks/task.schema';
 import { TenantContextService } from '../organizations/tenant-context.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 
@@ -29,6 +30,7 @@ export class UsersService {
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @InjectModel(Organization.name) private organizationModel: Model<OrganizationDocument>,
     @InjectModel(Project.name) private projectModel: Model<Project>,
+    @InjectModel(Task.name) private taskModel: Model<Task>,
     private readonly tenantContext: TenantContextService,
     private readonly organizationsService: OrganizationsService,
   ) {}
@@ -476,6 +478,17 @@ export class UsersService {
 
       const previousOrgId = user.organizationId;
 
+      // Remove user from any project they're assigned to
+      if (user.projectId) {
+        user.projectId = null;
+      }
+
+      // Unassign user from all tasks
+      await this.taskModel.updateMany(
+        { assignedTo: user._id },
+        { $unset: { assignedTo: '' } }
+      ).exec();
+
       // Remove user from organization
       user.organizationId = null;
       await user.save();
@@ -488,7 +501,7 @@ export class UsersService {
         ).exec();
       }
       
-      this.logger.log(`User ${userUuid} removed from organization`);
+      this.logger.log(`User ${userUuid} removed from organization, project, and all tasks`);
     } catch (error) {
       this.logger.error(`Failed to remove user from organization: ${userUuid}`, error.stack);
       throw error instanceof NotFoundException

@@ -4,12 +4,18 @@ import { useProjectStore } from '../../store/useProjectStore';
 import { Task, TaskStatus, TaskPriority } from '../../types/task.types';
 import TaskCard from './TaskCard';
 import TaskForm from './TaskForm';
+import TaskStatusUpdate from './TaskStatusUpdate';
 import { Plus, Filter, ListTodo } from 'lucide-react';
 import { useIsManager } from '../../hooks/useIsManager';
+import { usePermissions } from '../../hooks/usePermissions';
+import { Permission } from '../../types/auth.types';
 
 export default function Tasks() {
   const { tasks, myTasks, loading, fetchTasks, fetchMyTasks, createTask, updateTask, deleteTask } = useTaskStore();
   const isManager = useIsManager();
+  const { hasPermission } = usePermissions();
+  const canCreateTask = hasPermission(Permission.TASK_CREATE);
+  const canUpdateTask = hasPermission(Permission.TASK_UPDATE);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -94,13 +100,13 @@ export default function Tasks() {
           </div>
         </div>
         
-        {isManager && (
+        {canCreateTask && (
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            New Task
+            Create Task
           </button>
         )}
       </div>
@@ -177,10 +183,9 @@ export default function Tasks() {
                   <TaskCard
                     key={task._id}
                     task={task}
-                    onEdit={isManager ? handleEdit : undefined}
-                    onDelete={isManager ? handleDeleteTask : undefined}
+                    onEdit={handleEdit}
+                    onDelete={handleDeleteTask}
                     showProject={true}
-                    isManager={isManager}
                   />
                 ))}
               </div>
@@ -189,11 +194,24 @@ export default function Tasks() {
         </div>
       )}
 
-      {/* Task Form Modal - Only for managers and needs project UUID */}
-      {showForm && isManager && (
+      {/* Task Form Modal - Full edit for managers/admins */}
+      {showForm && isManager && (canCreateTask || (editingTask && canUpdateTask)) && (
         <TaskFormWithProjectSelect
           task={editingTask}
           onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
+          onCancel={handleCloseForm}
+        />
+      )}
+
+      {/* Task Status Update Modal - Status-only edit for regular users */}
+      {showForm && !isManager && editingTask && canUpdateTask && (
+        <TaskStatusUpdate
+          task={editingTask}
+          onSubmit={async (data) => {
+            await updateTask(editingTask._id, data);
+            setEditingTask(undefined);
+            setShowForm(false);
+          }}
           onCancel={handleCloseForm}
         />
       )}

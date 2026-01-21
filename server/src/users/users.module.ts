@@ -7,6 +7,7 @@ import { RolesModule } from '../roles/roles.module';
 import { AuditModule } from '../audit/audit.module';
 import { Organization, OrganizationSchema } from '../organizations/organization.schema';
 import { Project, ProjectSchema } from '../projects/project.schema';
+import { Task, TaskSchema } from '../tasks/task.schema';
 import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
@@ -15,6 +16,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
       { name: User.name, schema: UserSchema },
       { name: Organization.name, schema: OrganizationSchema },
       { name: Project.name, schema: ProjectSchema },
+      { name: Task.name, schema: TaskSchema },
     ]),
     RolesModule,
     forwardRef(() => AuditModule),
