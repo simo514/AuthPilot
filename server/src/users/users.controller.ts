@@ -82,6 +82,34 @@ export class UsersController {
     return { message: 'Password updated successfully' };
   }
 
+  @Patch('profile')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @UseInterceptors(AuditInterceptor)
+  async updateOwnProfile(
+    @Request() req,
+    @Body('fullName') fullName?: string,
+    @Body('email') email?: string,
+  ): Promise<UserResponseDto> {
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      throw new NotFoundException('User not authenticated');
+    }
+
+    this.logger.log(`PATCH /users/profile - User ${currentUser.uuid} updating own profile`);
+    
+    const updateData: UpdateUserDto = {};
+    if (fullName) updateData.fullName = fullName;
+    if (email) updateData.email = email;
+
+    const updated = await this.usersService.updateUser(currentUser.uuid, updateData);
+    if (!updated) {
+      this.logger.warn(`User not found: ${currentUser.uuid}`);
+      throw new NotFoundException('User not found');
+    }
+    return plainToInstance(UserResponseDto, updated, { excludeExtraneousValues: true });
+  }
+
   @Patch(':uuid')
   @RequirePermissions(Permission.USER_UPDATE)
   @UsePipes(new ValidationPipe({ transform: true }))

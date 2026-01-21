@@ -133,11 +133,6 @@ export class TasksService {
       throw new NotFoundException('User not found');
     }
 
-    // Check if user is a manager
-    if (user.role !== 'manager') {
-      throw new ForbiddenException('Only managers can update tasks');
-    }
-
     const task = await this.taskModel.findById(id).exec();
     if (!task) {
       throw new NotFoundException('Task not found');

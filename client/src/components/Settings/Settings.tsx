@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useUserStore } from '../../store/useUserStore';
 import { Lock, Bell, User, Save, Eye, EyeOff } from 'lucide-react';
 
 export function Settings() {
-  const { user, resetPassword, updateCurrentUser } = useAuthStore();
-  const updateUser = useUserStore((state) => state.updateUser);
+  const { user, resetPassword, updateProfile } = useAuthStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -43,9 +41,7 @@ export function Settings() {
       return;
     }
     try {
-      await updateUser(user.uuid, profileData as any);
-      // Update the current user in auth store so UI reflects changes immediately
-      updateCurrentUser(profileData as any);
+      await updateProfile(profileData.fullName, profileData.email);
       setProfileMessage('Profile updated successfully!');
     } catch (err: any) {
       setProfileError(err?.message || 'Failed to update profile.');

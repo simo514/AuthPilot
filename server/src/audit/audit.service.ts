@@ -1,17 +1,21 @@
-import { Injectable, Scope } from '@nestjs/common';
+import { Injectable, Inject, Optional, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Audit, AuditDocument } from './audit.schema';
 import { Model } from 'mongoose';
 import { TenantContextService } from '../organizations/tenant-context.service';
+import { REQUEST } from '@nestjs/core';
+import { Request } from 'express';
 
-@Injectable({ scope: Scope.DEFAULT })
+@Injectable()
 export class AuditService {
+  private readonly logger = new Logger(AuditService.name);
   private isCleanupRunning = false;
 
   constructor(
     @InjectModel(Audit.name) private auditModel: Model<AuditDocument>,
-    private readonly tenantContext: TenantContextService,
+    @Optional() @Inject(REQUEST) private request?: Request,
+    @Optional() private readonly tenantContext?: TenantContextService,
   ) {}
 
   async createAudit(
@@ -79,7 +83,7 @@ export class AuditService {
     const query: any = {};
 
     // Filter by organization from tenant context
-    const organizationId = this.tenantContext.getOrganizationId();
+    const organizationId = this.tenantContext?.getOrganizationId();
     if (organizationId) {
       query.organizationId = organizationId;
     }
@@ -122,7 +126,7 @@ export class AuditService {
   })
   async cleanupOldAudits() {
     if (this.isCleanupRunning) {
-      console.log('Audit cleanup already in progress, skipping...');
+      this.logger.log('Audit cleanup already in progress, skipping...');
       return;
     }
 
@@ -138,10 +142,10 @@ export class AuditService {
           .select('_id');
         const idsToDelete = oldestLogs.map((log) => log._id);
         await this.auditModel.deleteMany({ _id: { $in: idsToDelete } });
-        console.log(`Cleaned up ${idsToDelete.length} old audit logs`);
+        this.logger.log(`Cleaned up ${idsToDelete.length} old audit logs`);
       }
     } catch (error) {
-      console.error('Error during audit cleanup:', error);
+      this.logger.error('Error during audit cleanup:', error);
     } finally {
       this.isCleanupRunning = false;
     }

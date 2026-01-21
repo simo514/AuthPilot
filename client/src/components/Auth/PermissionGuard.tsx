@@ -95,14 +95,6 @@ export function PermissionGuard({
       userPermissions.includes(permission)
     );
   }
-  console.log('PermissionGuard:', {
-    requiredPermissions,
-    requireAll,
-    hasRequiredPermissions,
-    noRedirect,
-    willRedirect: !hasRequiredPermissions && !fallback && !noRedirect,
-    redirectTo
-  });
 
   if (!hasRequiredPermissions) {
     // If noRedirect is true, always show fallback (or null)
@@ -114,7 +106,6 @@ export function PermissionGuard({
     if (fallback) {
       return <>{fallback}</>;
     }
-    console.warn('Redirecting due to missing permissions');
     return <Navigate to={redirectTo} replace />;
   }
 

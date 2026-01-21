@@ -1,16 +1,21 @@
 import { Task, TaskStatus, TaskPriority } from '../../types/task.types';
 import { Calendar, User, Trash2, Edit } from 'lucide-react';
 import { format } from 'date-fns';
+import { usePermissions } from '../../hooks/usePermissions';
+import { Permission } from '../../types/auth.types';
 
 interface TaskCardProps {
   task: Task;
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
   showProject?: boolean;
-  isManager?: boolean;
 }
 
-export default function TaskCard({ task, onEdit, onDelete, showProject = false, isManager = false }: TaskCardProps) {
+export default function TaskCard({ task, onEdit, onDelete, showProject = false }: TaskCardProps) {
+  const { hasPermission } = usePermissions();
+  const canUpdate = hasPermission(Permission.TASK_UPDATE);
+  const canDelete = hasPermission(Permission.TASK_DELETE);
+  
   const getStatusColor = (status: TaskStatus) => {
     switch (status) {
       case TaskStatus.TODO:
@@ -51,9 +56,9 @@ export default function TaskCard({ task, onEdit, onDelete, showProject = false, 
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-2">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{task.title}</h3>
-        {isManager && (
+        {(canUpdate || canDelete) && (
           <div className="flex items-center gap-2">
-            {onEdit && (
+            {canUpdate && onEdit && (
               <button
                 onClick={() => onEdit(task)}
                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
@@ -61,7 +66,7 @@ export default function TaskCard({ task, onEdit, onDelete, showProject = false, 
                 <Edit className="w-4 h-4" />
               </button>
             )}
-            {onDelete && (
+            {canDelete && onDelete && (
               <button
                 onClick={() => onDelete(task._id)}
                 className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"

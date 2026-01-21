@@ -28,6 +28,7 @@ interface AuthState {
   clearError: () => void;
   resetPassword: (email: string, currentPassword: string, newPassword: string) => Promise<void>;
   updateCurrentUser: (updatedUser: Partial<User>) => void;
+  updateProfile: (fullName: string, email: string) => Promise<void>;
   refreshCurrentUser: () => Promise<void>;
 }
 
@@ -196,18 +197,29 @@ export const useAuthStore = create<AuthState>()(
           }));
         },
 
+        updateProfile: async (fullName, email) => {
+          try {
+            const response = await api.patch<User>('/users/profile', { fullName, email });
+            set((state) => ({
+              user: state.user ? { ...state.user, fullName, email } : null,
+            }));
+            toast.success('Profile updated successfully!');
+          } catch (error) {
+            const errorMessage = handleApiError(error);
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
+          }
+        },
+
         refreshCurrentUser: async () => {
           const currentUser = get().user;
           if (!currentUser?.uuid) return;
 
-          console.log('Refreshing current user data...');
           try {
             const response = await api.get<User>(`/users/${currentUser.uuid}`);
-            console.log('Fresh user data received:', response.data);
             set({ user: response.data });
-            console.log('User state updated');
           } catch (error) {
-            console.error('Failed to refresh user data:', error);
+            // Silent fail - user data refresh is not critical
           }
         },
       }),

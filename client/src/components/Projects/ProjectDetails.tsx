@@ -4,11 +4,13 @@ import { useProjectStore } from '../../store/useProjectStore';
 import { ArrowLeft, Edit, Users, UserPlus, X, Calendar, Tag } from 'lucide-react';
 import { PermissionGuard } from '../Auth/PermissionGuard';
 import { Permission } from '../../types/auth.types';
+import { usePermissions } from '../../hooks/usePermissions';
 import TaskList from '../Tasks/TaskList';
 
 export default function ProjectDetails() {
   const navigate = useNavigate();
   const { uuid } = useParams<{ uuid: string }>();
+  const { hasPermission } = usePermissions();
   const {
     currentProject,
     projectUsers,
@@ -24,13 +26,28 @@ export default function ProjectDetails() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
 
+  const canManageUsers = hasPermission(Permission.PROJECT_MANAGE_USERS);
+  const canViewAllProjects = hasPermission(Permission.PROJECT_LIST);
+
   useEffect(() => {
     if (uuid) {
       fetchProjectByUuid(uuid);
       fetchProjectUsers(uuid);
-      fetchAvailableUsers(uuid);
+      // Only fetch available users if user has permission to manage users
+      if (canManageUsers) {
+        fetchAvailableUsers(uuid);
+      }
     }
-  }, [uuid, fetchProjectByUuid, fetchProjectUsers, fetchAvailableUsers]);
+  }, [uuid, fetchProjectByUuid, fetchProjectUsers, fetchAvailableUsers, canManageUsers]);
+
+  const handleBack = () => {
+    // Navigate to appropriate projects page based on permissions
+    if (canViewAllProjects) {
+      navigate('/projects');
+    } else {
+      navigate('/my-projects');
+    }
+  };
 
   const handleAssignUser = async () => {
     if (!uuid || !selectedUserId) return;
@@ -91,7 +108,7 @@ export default function ProjectDetails() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/projects')}
+            onClick={handleBack}
             className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
           >
             <ArrowLeft size={24} />

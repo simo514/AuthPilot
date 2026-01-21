@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, UseInterceptors, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -24,6 +24,13 @@ export class ProjectsController {
   @RequirePermissions(Permission.PROJECT_LIST)
   findAll() {
     return this.projectsService.findAll();
+  }
+
+  @Get('my-projects')
+  @RequirePermissions(Permission.PROJECT_READ)
+  findMyProjects(@Request() req) {
+    const userId = req.user.uuid;
+    return this.projectsService.findUserProjects(userId);
   }
 
   @Get('organization/:organizationId')

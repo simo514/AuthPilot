@@ -74,6 +74,52 @@ export class ProjectsService {
     return projects.map(project => this.toResponseDto(project));
   }
 
+  async findUserProjects(userUuid: string): Promise<ProjectResponseDto[]> {
+    // Find the user
+    const user = await this.userModel.findOne({ uuid: userUuid }).exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // If user has a projectId, get that specific project
+    if (user.projectId) {
+      const project = await this.projectModel
+        .findOne({ _id: user.projectId })
+        .populate('organizationId', 'name')
+        .exec();
+      
+      if (project) {
+        return [this.toResponseDto(project)];
+      }
+    }
+
+    // Otherwise, get projects where user is assigned through tasks
+    const tasks = await this.taskModel
+      .find({ assignedTo: user._id })
+      .populate({
+        path: 'project',
+        populate: {
+          path: 'organizationId',
+          select: 'name'
+        }
+      })
+      .exec();
+
+    // Get unique projects from tasks
+    const projectMap = new Map();
+    tasks.forEach(task => {
+      if (task.project && typeof task.project === 'object') {
+        const project = task.project as any;
+        if (!projectMap.has(project._id.toString())) {
+          projectMap.set(project._id.toString(), project);
+        }
+      }
+    });
+
+    const projects = Array.from(projectMap.values());
+    return projects.map(project => this.toResponseDto(project));
+  }
+
   async findByUuid(uuid: string): Promise<ProjectResponseDto> {
     const project = await this.projectModel
       .findOne({ uuid })

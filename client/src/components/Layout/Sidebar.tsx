@@ -40,14 +40,16 @@ export function Sidebar({ activeTab: _activeTab, setActiveTab }: SidebarProps) {
   const canViewRoles = hasPermission(Permission.ROLE_READ) || hasPermission(Permission.ROLE_LIST);
   const canViewAudit = hasPermission(Permission.AUDIT_READ) || hasPermission(Permission.AUDIT_LIST);
   const canViewOrganizations = hasPermission(Permission.ORGANIZATION_LIST) || hasPermission(Permission.ORGANIZATION_READ);
-  const canViewProjects = hasPermission(Permission.PROJECT_LIST) || hasPermission(Permission.PROJECT_READ);
+  const canViewAllProjects = hasPermission(Permission.PROJECT_LIST);
+  const canViewMyProjects = hasPermission(Permission.PROJECT_READ);
   const canViewTasks = hasPermission(Permission.TASK_LIST) || hasPermission(Permission.TASK_READ);
 
   // Dynamically build menu
   const menuItems = [
     ...baseItems,
     ...(canViewOrganizations ? [{ id: 'organizations', label: 'Organizations', icon: Building2, path: '/organizations' }] : []),
-    ...(canViewProjects ? [{ id: 'projects', label: 'Projects', icon: FolderKanban, path: '/projects' }] : []),
+    ...(canViewAllProjects ? [{ id: 'projects', label: 'Projects', icon: FolderKanban, path: '/projects' }] : 
+        canViewMyProjects ? [{ id: 'my-projects', label: 'My Projects', icon: FolderKanban, path: '/my-projects' }] : []),
     ...(canViewTasks ? [{ id: 'tasks', label: 'Tasks', icon: CheckSquare, path: '/tasks' }] : []),
     ...(canViewUsers ? [{ id: 'users', label: 'Users', icon: Users, path: '/users' }] : []),
     ...(canViewRoles ? [{ id: 'roles', label: 'Roles', icon: Shield, path: '/roles' }] : []),
@@ -60,8 +62,8 @@ export function Sidebar({ activeTab: _activeTab, setActiveTab }: SidebarProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 w-64 min-h-screen shadow-lg border-r border-gray-200 dark:border-gray-700">
-      <div className="p-6">
+    <div className="fixed left-0 top-0 bg-white dark:bg-gray-900 w-64 h-screen shadow-lg border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      <div className="p-6 flex-shrink-0">
         <div className="flex items-center space-x-2 mb-8">
           <Shield className="h-8 w-8 text-blue-600 dark:text-blue-400" />
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">AuthPilot</h1>
@@ -91,7 +93,7 @@ export function Sidebar({ activeTab: _activeTab, setActiveTab }: SidebarProps) {
         </nav>
       </div>
 
-      <div className="absolute bottom-0 w-64 p-6 border-t border-gray-200 dark:border-gray-700">
+      <div className="mt-auto w-64 p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="flex items-center space-x-3 mb-4">
           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
             <span className="text-white font-semibold">

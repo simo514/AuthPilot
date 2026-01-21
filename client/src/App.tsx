@@ -15,6 +15,7 @@ import OrganizationDetails from './components/Organizations/OrganizationDetails'
 import ProjectList from './components/Projects/ProjectList';
 import ProjectForm from './components/Projects/ProjectForm';
 import ProjectDetails from './components/Projects/ProjectDetails';
+import UserProjectList from './components/Projects/UserProjectList';
 import Tasks from './components/Tasks/Tasks';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { RoleGuard } from './components/Auth/RoleGuard';
@@ -183,6 +184,17 @@ function App() {
             } 
           />
           <Route 
+            path="my-projects" 
+            element={
+              <PermissionGuard 
+                requiredPermissions={[Permission.PROJECT_READ]}
+                requireAll={false}
+              >
+                <UserProjectList />
+              </PermissionGuard>
+            } 
+          />
+          <Route 
             path="projects/new" 
             element={
               <PermissionGuard 
@@ -272,7 +284,7 @@ function App() {
   );
 }
 
-// Redirect to appropriate dashboard based on user role
+// Redirect to appropriate dashboard based on user permissions
 function DashboardRedirect() {
   const { user } = useAuthStore();
   
@@ -280,14 +292,16 @@ function DashboardRedirect() {
     return <Navigate to="/login" replace />;
   }
   
-  switch (user.role) {
-    case UserRole.ADMIN:
-      return <Navigate to="/dashboard/admin" replace />;
-    case UserRole.MANAGER:
-      return <Navigate to="/dashboard/manager" replace />;
-    case UserRole.USER:
-    default:
-      return <Navigate to="/dashboard/user" replace />;
+  const permissions = user.roleId?.permissions || [];
+  
+  // Check for dashboard permissions in priority order
+  if (permissions.includes(Permission.DASHBOARD_ADMIN)) {
+    return <Navigate to="/dashboard/admin" replace />;
+  } else if (permissions.includes(Permission.DASHBOARD_MANAGER)) {
+    return <Navigate to="/dashboard/manager" replace />;
+  } else {
+    // Default to user dashboard for all other cases
+    return <Navigate to="/dashboard/user" replace />;
   }
 }
 

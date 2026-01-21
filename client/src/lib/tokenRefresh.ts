@@ -24,8 +24,6 @@ export const startTokenRefresh = () => {
         const isAuthenticated = state?.isAuthenticated;
 
         if (isAuthenticated) {
-          console.log('[Token Refresh] Refreshing access token...');
-          
           // Call refresh endpoint - refresh token is in cookie
           const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
             withCredentials: true, // Send cookies
@@ -41,8 +39,6 @@ export const startTokenRefresh = () => {
             },
           };
           localStorage.setItem('auth-storage', JSON.stringify(updatedStorage));
-          
-          console.log('[Token Refresh] Access token refreshed successfully');
         } else {
           stopTokenRefresh();
         }
@@ -58,8 +54,6 @@ export const startTokenRefresh = () => {
       stopTokenRefresh();
     }
   }, REFRESH_INTERVAL);
-
-  console.log('[Token Refresh] Automatic token refresh started (every 10 minutes)');
 };
 
 /**
@@ -69,7 +63,6 @@ export const stopTokenRefresh = () => {
   if (refreshInterval) {
     clearInterval(refreshInterval);
     refreshInterval = null;
-    console.log('[Token Refresh] Automatic token refresh stopped');
   }
 };
 
@@ -104,7 +97,6 @@ export const refreshTokenNow = async (): Promise<boolean> => {
     
     return true;
   } catch (error) {
-    console.error('[Token Refresh] Manual refresh failed:', error);
     return false;
   }
 };
