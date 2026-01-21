@@ -32,9 +32,6 @@ export class UserResponseDto {
   role: string;
 
   @Expose()
-  department: string;
-
-  @Expose()
   status: string;
 
   @Expose()

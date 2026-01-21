@@ -61,8 +61,14 @@ export class ProjectsService {
   }
 
   async findByOrganization(organizationId: string): Promise<ProjectResponseDto[]> {
+    // Find organization by UUID first
+    const organization = await this.organizationModel.findOne({ uuid: organizationId }).exec();
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
     const projects = await this.projectModel
-      .find({ organizationId: new Types.ObjectId(organizationId) })
+      .find({ organizationId: organization._id })
       .populate('organizationId', 'name')
       .exec();
     return projects.map(project => this.toResponseDto(project));

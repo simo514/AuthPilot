@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useOrganizationStore } from '../../store/useOrganizationStore';
+import { useProjectStore } from '../../store/useProjectStore';
 import { organizationService } from '../../services/organizationService';
 import {
   ArrowLeft,
@@ -10,6 +11,7 @@ import {
   UserPlus,
   UserMinus,
   Edit,
+  Plus,
 } from 'lucide-react';
 import { UserListItem } from '../../types/user.types';
 import { OrganizationStatus } from '../../types/organization.types';
@@ -18,6 +20,7 @@ export default function OrganizationDetails() {
   const { uuid } = useParams<{ uuid: string }>();
   const navigate = useNavigate();
   const { currentOrganization, fetchOrganizationByUuid, loading } = useOrganizationStore();
+  const { projects, loading: projectsLoading, fetchProjectsByOrganization, createProject } = useProjectStore();
 
   const getStatusColor = (status: OrganizationStatus) => {
     switch (status) {
@@ -39,6 +42,17 @@ export default function OrganizationDetails() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [unassignedUsers, setUnassignedUsers] = useState<UserListItem[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
+  const [projectFormData, setProjectFormData] = useState({
+    name: '',
+    slug: '',
+    description: '',
+    status: 'active',
+    startDate: '',
+    endDate: '',
+    tags: [] as string[],
+  });
+  const [tagInput, setTagInput] = useState('');
 
   useEffect(() => {
     if (uuid) {
@@ -49,8 +63,10 @@ export default function OrganizationDetails() {
   useEffect(() => {
     if (uuid && activeTab === 'users') {
       loadUsers();
+    } else if (uuid && activeTab === 'projects') {
+      fetchProjectsByOrganization(uuid);
     }
-  }, [uuid, activeTab]);
+  }, [uuid, activeTab, fetchProjectsByOrganization]);
 
   const loadUsers = async () => {
     if (!uuid) return;
@@ -216,7 +232,7 @@ export default function OrganizationDetails() {
             >
               <div className="flex items-center gap-2">
                 <FolderKanban size={20} />
-                Projects (Coming Soon)
+                Projects ({projects.length})
               </div>
             </button>
           </div>
@@ -259,9 +275,6 @@ export default function OrganizationDetails() {
                           Role
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                          Department
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Status
                         </th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -284,9 +297,6 @@ export default function OrganizationDetails() {
                             <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 capitalize">
                               {user.role}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                            {user.department || 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
@@ -317,13 +327,285 @@ export default function OrganizationDetails() {
           )}
 
           {activeTab === 'projects' && (
-            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-              <FolderKanban size={48} className="mx-auto mb-4 text-gray-400 dark:text-gray-500" />
-              <p>Project management coming soon...</p>
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Organization Projects
+                </h3>
+                <button
+                  onClick={() => setShowCreateProjectModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus size={20} />
+                  Create Project
+                </button>
+              </div>
+
+              {projectsLoading ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                </div>
+              ) : projects.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  No projects created yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {projects.map((project) => (
+                    <div
+                      key={project.uuid}
+                      className="border dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => navigate(`/projects/${project.uuid}`)}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-semibold text-gray-900 dark:text-white">
+                          {project.name}
+                        </h4>
+                        <FolderKanban className="text-blue-600 dark:text-blue-400" size={20} />
+                      </div>
+                      {project.description && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                          {project.description}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">
+                          {project.currentUsers} members
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          project.status === 'active'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                        }`}>
+                          {project.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Create Project Modal */}
+      {showCreateProjectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b dark:border-gray-700">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Project</h2>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                Add a new project to this organization
+              </p>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!uuid) return;
+                try {
+                  await createProject({
+                    ...projectFormData,
+                    organizationId: uuid,
+                  });
+                  setShowCreateProjectModal(false);
+                  setProjectFormData({
+                    name: '',
+                    slug: '',
+                    description: '',
+                    status: 'active',
+                    startDate: '',
+                    endDate: '',
+                    tags: [],
+                  });
+                  setTagInput('');
+                  fetchProjectsByOrganization(uuid);
+                } catch (error) {
+                  console.error('Failed to create project:', error);
+                }
+              }}
+              className="p-6 space-y-4"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Project Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={projectFormData.name}
+                    onChange={(e) => setProjectFormData({ ...projectFormData, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="Enter project name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Slug *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={projectFormData.slug}
+                    onChange={(e) => setProjectFormData({ ...projectFormData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="project-slug"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={projectFormData.description}
+                  onChange={(e) => setProjectFormData({ ...projectFormData, description: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Enter project description"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={projectFormData.status}
+                    onChange={(e) => setProjectFormData({ ...projectFormData, status: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={projectFormData.startDate}
+                    onChange={(e) => setProjectFormData({ ...projectFormData, startDate: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={projectFormData.endDate}
+                  onChange={(e) => setProjectFormData({ ...projectFormData, endDate: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tags
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (tagInput.trim() && !projectFormData.tags.includes(tagInput.trim())) {
+                          setProjectFormData({
+                            ...projectFormData,
+                            tags: [...projectFormData.tags, tagInput.trim()],
+                          });
+                          setTagInput('');
+                        }
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="Add tag"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (tagInput.trim() && !projectFormData.tags.includes(tagInput.trim())) {
+                        setProjectFormData({
+                          ...projectFormData,
+                          tags: [...projectFormData.tags, tagInput.trim()],
+                        });
+                        setTagInput('');
+                      }
+                    }}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {projectFormData.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full text-sm flex items-center gap-2"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProjectFormData({
+                            ...projectFormData,
+                            tags: projectFormData.tags.filter((t) => t !== tag),
+                          });
+                        }}
+                        className="hover:text-blue-600 dark:hover:text-blue-200"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateProjectModal(false);
+                    setProjectFormData({
+                      name: '',
+                      slug: '',
+                      description: '',
+                      status: 'active',
+                      startDate: '',
+                      endDate: '',
+                      tags: [],
+                    });
+                    setTagInput('');
+                  }}
+                  className="px-6 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Create Project
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Assign User Modal */}
       {showAssignModal && (

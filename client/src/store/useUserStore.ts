@@ -75,7 +75,6 @@ export const useUserStore = create<UserState>()(
           if (search) params.append('search', search);
 
           const filters = get().filters;
-          if (filters.department) params.append('department', filters.department);
           if (filters.role) params.append('role', filters.role);
 
           const usersData = await api.get(`/users?${params.toString()}`);

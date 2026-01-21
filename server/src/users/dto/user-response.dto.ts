@@ -41,9 +41,6 @@ export class UserResponseDto {
   role: string;
 
   @Expose()
-  department: string;
-
-  @Expose()
   managerId: string;
 
   @Expose()

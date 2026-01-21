@@ -18,6 +18,7 @@ import { plainToInstance } from 'class-transformer';
 import { Organization, OrganizationDocument } from '../organizations/organization.schema';
 import { Project } from '../projects/project.schema';
 import { TenantContextService } from '../organizations/tenant-context.service';
+import { OrganizationsService } from '../organizations/organizations.service';
 
 @Injectable()
 export class UsersService {
@@ -29,10 +30,11 @@ export class UsersService {
     @InjectModel(Organization.name) private organizationModel: Model<OrganizationDocument>,
     @InjectModel(Project.name) private projectModel: Model<Project>,
     private readonly tenantContext: TenantContextService,
+    private readonly organizationsService: OrganizationsService,
   ) {}
 
   async createUser(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    const { fullName, email, password, roleId, role, department, managerId, organizationId } = createUserDto;
+    const { fullName, email, password, roleId, role, managerId, organizationId } = createUserDto;
 
     // If role looks like a MongoDB ObjectId (24 hex chars), treat it as roleId
     const isRoleAnObjectId = role && /^[0-9a-fA-F]{24}$/.test(role);
@@ -75,7 +77,6 @@ export class UsersService {
       role: roleName,
       managerId,
       ...(organizationId && { organizationId }),
-      ...(department && { department }),
     });
     
     
@@ -91,14 +92,15 @@ export class UsersService {
       this.logger.error(`Failed to create user: ${email}`, error.stack);
       if (error.code === 11000) {
         // Check which field caused the duplicate key error
-        const duplicateField = error.keyPattern ? Object.keys(error.keyPattern)[0] : 'unknown';
+        const duplicateField = error.keyPattern ? Object.keys(error.keyPattern) : [];
         
-        if (duplicateField === 'email') {
+        // Check if email is in the duplicate fields (could be part of compound index)
+        if (duplicateField.includes('email')) {
           throw new ConflictException('User with this email already exists');
-        } else if (duplicateField === 'googleId') {
+        } else if (duplicateField.includes('googleId')) {
           throw new ConflictException('Google ID already exists');
         } else {
-          throw new ConflictException(`Duplicate ${duplicateField} already exists`);
+          throw new ConflictException(`Duplicate ${duplicateField.join(', ')} already exists`);
         }
       }
       throw new InternalServerErrorException('Failed to create user');
@@ -163,7 +165,6 @@ export class UsersService {
     page: number = 1,
     limit: number = 10,
     search?: string,
-    department?: string,
     role?: string,
     status?: string,
   ): Promise<{ users: Omit<User, 'password'>[]; total: number; page: number; totalPages: number }> {
@@ -173,10 +174,6 @@ export class UsersService {
     const organizationId = this.tenantContext.getOrganizationId();
     if (organizationId) {
       filter.organizationId = organizationId;
-    }
-
-    if (department) {
-      filter.department = department;
     }
 
     if (role) {
@@ -244,11 +241,38 @@ export class UsersService {
   async deleteUser(uuid: string): Promise<boolean> {
     this.logger.log(`Deleting user: ${uuid}`);
     try {
+      // Get user's organizationId and projectId before deletion
+      const user = await this.userModel.findOne({ uuid }).select('organizationId projectId').exec();
+      
+      if (!user) {
+        this.logger.warn(`User not found for deletion: ${uuid}`);
+        return false;
+      }
+
+      const organizationId = user.organizationId;
+      const projectId = user.projectId;
+
+      // Delete the user
       const result = await this.userModel.deleteOne({ uuid }).exec();
 
       if (result.deletedCount === 0) {
-        this.logger.warn(`User not found for deletion: ${uuid}`);
+        this.logger.warn(`User deletion failed: ${uuid}`);
         return false;
+      }
+
+      // Decrement the organization's currentUsers count if user was assigned to an organization
+      if (organizationId) {
+        await this.organizationsService.decrementUserCount(organizationId);
+        this.logger.log(`Decremented currentUsers for organization: ${organizationId}`);
+      }
+
+      // Decrement the project's currentUsers count if user was assigned to a project
+      if (projectId) {
+        await this.projectModel.updateOne(
+          { uuid: projectId },
+          { $inc: { currentUsers: -1 } },
+        ).exec();
+        this.logger.log(`Decremented currentUsers for project: ${projectId}`);
       }
 
       this.logger.log(`User deleted successfully: ${uuid}`);

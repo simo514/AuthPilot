@@ -66,7 +66,7 @@ export function UserDashboard() {
                 {user?.fullName}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {user?.role} • {user?.department || 'No Department'}
+                {user?.role}
               </p>
               <div className="flex items-center space-x-2 mt-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -164,7 +164,7 @@ export function UserDashboard() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Activity Summary</h2>
         </div>
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                 {user?.lastLoginAt ? Math.floor((Date.now() - new Date(user.lastLoginAt).getTime()) / (1000 * 60 * 60 * 24)) : 0}
@@ -176,12 +176,6 @@ export function UserDashboard() {
                 {user?.status}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Account Status</p>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {user?.department || 'None'}
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Department</p>
             </div>
           </div>
         </div>

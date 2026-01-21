@@ -6,7 +6,6 @@ import { User as UserType, Permission } from '../../types/auth.types';
 import { Search, Filter, Plus, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRoleStore } from '../../store';
 import { PermissionGuard } from '../Auth/PermissionGuard';
-import { DEPARTMENTS } from '../../enums/departments.enum';
 import { usePermissions } from '../../hooks/usePermissions';
 
 type User = UserType;
@@ -91,7 +90,6 @@ export function UserManagement() {
       const payload: any = {
         fullName: userData.fullName,
         email: userData.email,
-        department: userData.department,
         managerId: userData.managerId,
         status: userData.status,
       };
@@ -190,9 +188,6 @@ export function UserManagement() {
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -206,13 +201,13 @@ export function UserManagement() {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {status === 'loading' ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     Loading users...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     No users found
                   </td>
                 </tr>
@@ -246,9 +241,6 @@ export function UserManagement() {
                       }`}>
                         {user.role}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {user.department || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -408,7 +400,6 @@ export function CreateUserModal({ onClose, onSave, roles = [] }: {
     email: '',
     password: '',
     roleId: '',
-    department: '',
     managerId: ''
   });
 
@@ -424,7 +415,6 @@ export function CreateUserModal({ onClose, onSave, roles = [] }: {
       email: formData.email,
       password: formData.password,
       roleId: formData.roleId,
-      department: formData.department,
       managerId: formData.managerId
     };
     onSave(payload);
@@ -528,24 +518,6 @@ export function CreateUserModal({ onClose, onSave, roles = [] }: {
               </select>
             </div>
           )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Department
-            </label>
-            <select
-              value={formData.department || ''}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="" disabled>Select Department</option>
-              {DEPARTMENTS.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          </div>
 
           <div className="flex items-center justify-end space-x-4 pt-4">
             <button
@@ -752,24 +724,6 @@ function EditUserModal({ user, onClose, onSave, currentUserRole, roles }: {
               </select>
             </div>
           )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Department
-            </label>
-            <select
-              value={formData.department || ''}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="" disabled>Select Department</option>
-              {DEPARTMENTS.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          </div>
 
           {currentUserRole === 'admin' && (
             <div>

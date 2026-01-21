@@ -104,14 +104,13 @@ export class UsersController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
-    @Query('department') department?: string,
     @Query('role') role?: string,
   ) {
     this.logger.log(`GET /users - Fetching users with filters`);
     const pageNum = parseInt(page || '1', 10);
     const limitNum = parseInt(limit || '10', 10);
 
-    const result = await this.usersService.getAllUsers(pageNum, limitNum, search, department, role);
+    const result = await this.usersService.getAllUsers(pageNum, limitNum, search, role);
 
     return {
       users: plainToInstance(UserResponseDto, result.users, { excludeExtraneousValues: true }),

@@ -21,9 +21,9 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
-    const { fullName, email, password, department } = registerDto;
+    const { fullName, email, password } = registerDto;
 
-    await this.usersService.createUser({ fullName, email, password, department });
+    await this.usersService.createUser({ fullName, email, password });
     this.logger.log(`User registered successfully: ${email}`);
 
     const user = await this.usersService.findByEmailWithPassword(email);

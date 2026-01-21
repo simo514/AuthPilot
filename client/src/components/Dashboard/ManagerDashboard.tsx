@@ -1,11 +1,9 @@
 import { useEffect } from 'react';
 import { Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { useAuthStore } from '../../store/useAuthStore';
 import { useUserStore } from '../../store/useUserStore';
 import { useTaskStore } from '../../store/useTaskStore';
 
 export function ManagerDashboard() {
-  const { user: currentUser } = useAuthStore();
   const { users: teamMembers, fetchUsers } = useUserStore();
   const { tasks, fetchTasks } = useTaskStore();
 
@@ -153,9 +151,6 @@ export function ManagerDashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manager Dashboard</h1>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {currentUser?.department || 'General Department'}
-        </div>
       </div>
 
       {/* Stats Grid */}
@@ -216,7 +211,7 @@ export function ManagerDashboard() {
                         {member.fullName}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {member.role} {member.department && `• ${member.department}`}
+                        {member.role}
                       </p>
                     </div>
                   </div>

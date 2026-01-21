@@ -26,13 +26,6 @@ export enum Permission {
   DASHBOARD_MANAGER = 'dashboard:manager',
   DASHBOARD_USER = 'dashboard:user',
 
-  // Department Permissions
-  DEPARTMENT_CREATE = 'department:create',
-  DEPARTMENT_READ = 'department:read',
-  DEPARTMENT_UPDATE = 'department:update',
-  DEPARTMENT_DELETE = 'department:delete',
-  DEPARTMENT_LIST = 'department:list',
-
   // Organization Management
   ORGANIZATION_CREATE = 'organization:create',
   ORGANIZATION_READ = 'organization:read',
