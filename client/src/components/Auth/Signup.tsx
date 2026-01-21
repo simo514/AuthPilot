@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
-import { UserDepartment } from '../../types/auth.types';
-import { Mail, Lock, User, Eye, EyeOff, Shield, Briefcase } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Shield } from 'lucide-react';
 import { GoogleAuthButton } from './GoogleAuthButton';
 
 interface SignupProps {
@@ -17,7 +16,6 @@ export function Signup({ onToggleMode }: SignupProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [department, setDepartment] = useState<UserDepartment>(UserDepartment.ENGINEERING);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [localError, setLocalError] = useState('');
@@ -42,7 +40,6 @@ export function Signup({ onToggleMode }: SignupProps) {
         fullName,
         email,
         password,
-        department,
       });
       // Success - redirect to dashboard
       navigate('/dashboard');
@@ -155,29 +152,6 @@ export function Signup({ onToggleMode }: SignupProps) {
                 >
                   {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Department
-              </label>
-              <div className="mt-1 relative">
-                <Briefcase className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <select
-                  id="department"
-                  name="department"
-                  required
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value as UserDepartment)}
-                  className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                >
-                  {Object.values(UserDepartment).map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 

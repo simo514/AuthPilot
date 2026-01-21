@@ -5,7 +5,6 @@ export interface User {
   email: string;
   name: string;
   role: 'Admin' | 'Manager' | 'User';
-  department?: string;
   status: 'active' | 'inactive';
   createdAt: string;
   lastLogin?: string;
@@ -38,7 +37,6 @@ const mockUsers: User[] = [
     email: 'manager@example.com',
     name: 'Manager User',
     role: 'Manager',
-    department: 'Engineering',
     status: 'active',
     createdAt: '2024-01-16T11:20:00Z',
     lastLogin: '2024-01-20T09:15:00Z'
@@ -48,7 +46,6 @@ const mockUsers: User[] = [
     email: 'user@example.com',
     name: 'Regular User',
     role: 'User',
-    department: 'Engineering',
     status: 'active',
     createdAt: '2024-01-17T16:45:00Z',
     lastLogin: '2024-01-19T13:30:00Z'

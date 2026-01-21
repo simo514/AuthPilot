@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
 import { randomUUID } from 'crypto';
-import { UserDepartment } from './enums/user-department.enum';
 import { UserStatus } from './enums/user-status.enum';
 
 export type UserDocument = User & Document;
@@ -22,6 +21,14 @@ export class User {
     index: true,
   })
   organizationId: string | null;
+
+  @Prop({
+    type: String,
+    required: false,
+    default: null,
+    index: true,
+  })
+  projectId: string | null;
 
   @Prop({
     required: true,
@@ -59,14 +66,6 @@ export class User {
     required: true,
   })
   role: string;
-
-  @Prop({
-    type: String,
-    enum: [...Object.values(UserDepartment), null],
-    default: null,
-    required: false,
-  })
-  department: UserDepartment | null;
 
   @Prop({
     type: String,
@@ -129,8 +128,6 @@ export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.index({ organizationId: 1, email: 1 }, { unique: true }); // Email unique per organization
 UserSchema.index({ organizationId: 1, status: 1 }); // Filter users by org and status
 UserSchema.index({ organizationId: 1, role: 1 }); // Filter users by org and role
-UserSchema.index({ organizationId: 1, department: 1 }); // Filter users by org and department
 UserSchema.index({ status: 1, role: 1 }); // Filter active users by role
-UserSchema.index({ department: 1, status: 1 }); // Filter users by department
 UserSchema.index({ createdAt: -1 }); // Sort by registration date
 UserSchema.index({ lastLoginAt: -1 }); // Sort by activity

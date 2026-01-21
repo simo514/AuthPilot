@@ -16,7 +16,7 @@ export function AuditLogs() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-      setCurrentPage(1); // Reset to first page on search
+      setCurrentPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);

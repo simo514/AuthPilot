@@ -6,6 +6,7 @@ import { UsersController } from './users.controller';
 import { RolesModule } from '../roles/roles.module';
 import { AuditModule } from '../audit/audit.module';
 import { Organization, OrganizationSchema } from '../organizations/organization.schema';
+import { Project, ProjectSchema } from '../projects/project.schema';
 import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
@@ -13,6 +14,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Organization.name, schema: OrganizationSchema },
+      { name: Project.name, schema: ProjectSchema },
     ]),
     RolesModule,
     forwardRef(() => AuditModule),

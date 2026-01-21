@@ -1,5 +1,4 @@
 import { IsOptional, IsString, IsEmail, IsEnum, IsMongoId } from 'class-validator';
-import { UserDepartment } from '../enums/user-department.enum';
 import { UserStatus } from '../enums/user-status.enum';
 
 export class UpdateUserDto {
@@ -17,10 +16,6 @@ export class UpdateUserDto {
   @IsOptional()
   @IsMongoId()
   roleId?: string;
-
-  @IsOptional()
-  @IsEnum(UserDepartment)
-  department?: UserDepartment;
 
   @IsOptional()
   @IsString()

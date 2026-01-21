@@ -16,7 +16,9 @@ import { Role, RoleDocument } from '../roles/role.schema';
 import { UserResponseDto } from './dto/user-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { Organization, OrganizationDocument } from '../organizations/organization.schema';
+import { Project } from '../projects/project.schema';
 import { TenantContextService } from '../organizations/tenant-context.service';
+import { OrganizationsService } from '../organizations/organizations.service';
 
 @Injectable()
 export class UsersService {
@@ -26,11 +28,13 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @InjectModel(Organization.name) private organizationModel: Model<OrganizationDocument>,
+    @InjectModel(Project.name) private projectModel: Model<Project>,
     private readonly tenantContext: TenantContextService,
+    private readonly organizationsService: OrganizationsService,
   ) {}
 
   async createUser(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    const { fullName, email, password, roleId, role, department, managerId, organizationId } = createUserDto;
+    const { fullName, email, password, roleId, role, managerId, organizationId } = createUserDto;
 
     // If role looks like a MongoDB ObjectId (24 hex chars), treat it as roleId
     const isRoleAnObjectId = role && /^[0-9a-fA-F]{24}$/.test(role);
@@ -73,7 +77,6 @@ export class UsersService {
       role: roleName,
       managerId,
       ...(organizationId && { organizationId }),
-      ...(department && { department }),
     });
     
     
@@ -89,14 +92,15 @@ export class UsersService {
       this.logger.error(`Failed to create user: ${email}`, error.stack);
       if (error.code === 11000) {
         // Check which field caused the duplicate key error
-        const duplicateField = error.keyPattern ? Object.keys(error.keyPattern)[0] : 'unknown';
+        const duplicateField = error.keyPattern ? Object.keys(error.keyPattern) : [];
         
-        if (duplicateField === 'email') {
+        // Check if email is in the duplicate fields (could be part of compound index)
+        if (duplicateField.includes('email')) {
           throw new ConflictException('User with this email already exists');
-        } else if (duplicateField === 'googleId') {
+        } else if (duplicateField.includes('googleId')) {
           throw new ConflictException('Google ID already exists');
         } else {
-          throw new ConflictException(`Duplicate ${duplicateField} already exists`);
+          throw new ConflictException(`Duplicate ${duplicateField.join(', ')} already exists`);
         }
       }
       throw new InternalServerErrorException('Failed to create user');
@@ -161,7 +165,6 @@ export class UsersService {
     page: number = 1,
     limit: number = 10,
     search?: string,
-    department?: string,
     role?: string,
     status?: string,
   ): Promise<{ users: Omit<User, 'password'>[]; total: number; page: number; totalPages: number }> {
@@ -171,11 +174,6 @@ export class UsersService {
     const organizationId = this.tenantContext.getOrganizationId();
     if (organizationId) {
       filter.organizationId = organizationId;
-      this.logger.debug(`Filtering users by organizationId: ${organizationId}`);
-    }
-
-    if (department) {
-      filter.department = department;
     }
 
     if (role) {
@@ -243,11 +241,38 @@ export class UsersService {
   async deleteUser(uuid: string): Promise<boolean> {
     this.logger.log(`Deleting user: ${uuid}`);
     try {
+      // Get user's organizationId and projectId before deletion
+      const user = await this.userModel.findOne({ uuid }).select('organizationId projectId').exec();
+      
+      if (!user) {
+        this.logger.warn(`User not found for deletion: ${uuid}`);
+        return false;
+      }
+
+      const organizationId = user.organizationId;
+      const projectId = user.projectId;
+
+      // Delete the user
       const result = await this.userModel.deleteOne({ uuid }).exec();
 
       if (result.deletedCount === 0) {
-        this.logger.warn(`User not found for deletion: ${uuid}`);
+        this.logger.warn(`User deletion failed: ${uuid}`);
         return false;
+      }
+
+      // Decrement the organization's currentUsers count if user was assigned to an organization
+      if (organizationId) {
+        await this.organizationsService.decrementUserCount(organizationId);
+        this.logger.log(`Decremented currentUsers for organization: ${organizationId}`);
+      }
+
+      // Decrement the project's currentUsers count if user was assigned to a project
+      if (projectId) {
+        await this.projectModel.updateOne(
+          { uuid: projectId },
+          { $inc: { currentUsers: -1 } },
+        ).exec();
+        this.logger.log(`Decremented currentUsers for project: ${projectId}`);
       }
 
       this.logger.log(`User deleted successfully: ${uuid}`);
@@ -272,24 +297,6 @@ export class UsersService {
     } catch (error) {
       this.logger.error('Failed to fetch managers', error.stack);
       throw new InternalServerErrorException('Failed to fetch managers');
-    }
-  }
-
-  // For managers: Get their own team members using their UUID
-  async getMyTeamMembers(managerUuid: string): Promise<Omit<User, 'password'>[]> {
-    try {
-      const users = await this.userModel
-        .find({ managerId: managerUuid })
-        .select('-password')
-        .populate('roleId', 'name permissions isActive level -_id')
-        .lean()
-        .exec();
-
-      this.logger.log(`Retrieved ${users.length} team members for manager: ${managerUuid}`);
-      return users;
-    } catch (error) {
-      this.logger.error(`Failed to fetch team members for manager: ${managerUuid}`, error.stack);
-      throw new InternalServerErrorException('Failed to fetch team members');
     }
   }
 
@@ -547,5 +554,59 @@ export class UsersService {
       this.logger.error('Failed to fetch unassigned users', error.stack);
       throw new InternalServerErrorException('Failed to fetch unassigned users');
     }
+  }
+
+  async assignUserToProject(userUuid: string, projectUuid: string): Promise<UserResponseDto> {
+    const user = await this.userModel.findOne({ uuid: userUuid }).populate('roleId').exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const project = await this.projectModel.findOne({ uuid: projectUuid }).exec();
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // If user already has a project, remove them from it first
+    if (user.projectId) {
+      await this.removeUserFromProject(userUuid);
+    }
+
+    user.projectId = project._id.toString();
+    await user.save();
+
+    // Increment project's currentUsers count
+    await this.projectModel.updateOne(
+      { uuid: projectUuid },
+      { $inc: { currentUsers: 1 } }
+    );
+
+    return plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true });
+  }
+
+  async removeUserFromProject(userUuid: string): Promise<UserResponseDto> {
+    const user = await this.userModel.findOne({ uuid: userUuid }).populate('roleId').exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.projectId) {
+      throw new BadRequestException('User is not assigned to any project');
+    }
+
+    const projectId = user.projectId;
+    user.projectId = null;
+    await user.save();
+
+    // Decrement project's currentUsers count
+    const project = await this.projectModel.findById(projectId).exec();
+    if (project) {
+      await this.projectModel.updateOne(
+        { _id: projectId },
+        { $inc: { currentUsers: -1 } }
+      );
+    }
+
+    return plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true });
   }
 }

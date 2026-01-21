@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { APP_INTERCEPTOR } from '@nestjs/core';
 import Joi from 'joi';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
@@ -10,8 +9,9 @@ import { RolesModule } from './roles/roles.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { ProjectsModule } from './projects/projects.module';
+import { TasksModule } from './tasks/tasks.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
-import { TenantContextInterceptor } from './organizations/tenant-context.interceptor';
 
 @Module({
   imports: [
@@ -50,17 +50,14 @@ import { TenantContextInterceptor } from './organizations/tenant-context.interce
     ]),
     MongooseModule.forRoot(process.env.DB_CONNECTION),
     OrganizationsModule,
+    ProjectsModule,
+    TasksModule,
     UsersModule,
     RolesModule,
     AuthModule,
     AuditModule,
   ],
   controllers: [],
-  providers: [
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: TenantContextInterceptor,
-    },
-  ],
+  providers: [],
 })
 export class AppModule {}

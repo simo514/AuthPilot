@@ -2,7 +2,7 @@
 // USER MANAGEMENT TYPES
 // ============================================
 
-import { UserDepartment, UserRole, UserStatus, RoleInfo } from './auth.types';
+import { UserRole, UserStatus, RoleInfo } from './auth.types';
 
 export interface CreateUserDto {
   organizationId?: string;
@@ -11,7 +11,6 @@ export interface CreateUserDto {
   password: string;
   roleId?: string;
   managerId: string;
-  department: UserDepartment;
 }
 
 export interface UpdateUserDto {
@@ -19,7 +18,6 @@ export interface UpdateUserDto {
   fullName?: string;
   email?: string;
   roleId?: string;
-  department?: UserDepartment;
   managerId?: string;
   status?: UserStatus;
 }
@@ -31,7 +29,6 @@ export interface UserListItem {
   fullName: string;
   roleId: RoleInfo;
   role: UserRole;
-  department: UserDepartment;
   status: UserStatus;
   lastLoginAt: Date | string;
   emailVerifiedAt: Date | string | null;
@@ -41,7 +38,6 @@ export interface UserListItem {
 
 export interface UserFilters {
   role?: UserRole;
-  department?: UserDepartment;
   status?: UserStatus;
   search?: string;
 }

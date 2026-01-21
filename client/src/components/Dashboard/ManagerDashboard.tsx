@@ -1,15 +1,17 @@
 import { useEffect } from 'react';
 import { Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { useAuthStore } from '../../store/useAuthStore';
 import { useUserStore } from '../../store/useUserStore';
+import { useTaskStore } from '../../store/useTaskStore';
 
 export function ManagerDashboard() {
-  const { user: currentUser } = useAuthStore();
-  const { users: teamMembers, fetchMyTeamMembers } = useUserStore();
+  const { users: teamMembers, fetchUsers } = useUserStore();
+  const { tasks, fetchTasks } = useTaskStore();
 
   useEffect(() => {
-    fetchMyTeamMembers();
-  }, [fetchMyTeamMembers]);
+    // Tenant context automatically filters to show only organization users and tasks
+    fetchUsers();
+    fetchTasks();
+  }, [fetchUsers, fetchTasks]);
 
   // Count team members
   const teamMembersCount = teamMembers.length;
@@ -25,6 +27,69 @@ export function ManagerDashboard() {
       lastLogin.getFullYear() === today.getFullYear()
     );
   }).length;
+
+  // Count pending tasks
+  const pendingTasks = tasks.filter(task => 
+    task.status === 'TODO' || task.status === 'IN_PROGRESS'
+  ).length;
+
+  // Count issues (high priority or overdue tasks)
+  const issues = tasks.filter(task => {
+    const isHighPriority = task.priority === 'HIGH' || task.priority === 'URGENT';
+    const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED';
+    return isHighPriority || isOverdue;
+  }).length;
+
+  // Get recent tasks (last 5 tasks, sorted by creation date)
+  const recentTasks = [...tasks]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
+  const getTaskIcon = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return CheckCircle;
+      case 'IN_PROGRESS':
+      case 'IN_REVIEW':
+        return Clock;
+      default:
+        return AlertCircle;
+    }
+  };
+
+  const getTaskBgColor = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return 'bg-green-50 dark:bg-green-900/20';
+      case 'IN_PROGRESS':
+      case 'IN_REVIEW':
+        return 'bg-yellow-50 dark:bg-yellow-900/20';
+      default:
+        return 'bg-blue-50 dark:bg-blue-900/20';
+    }
+  };
+
+  const getTaskIconColor = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return 'text-green-600 dark:text-green-400';
+      case 'IN_PROGRESS':
+      case 'IN_REVIEW':
+        return 'text-yellow-600 dark:text-yellow-400';
+      default:
+        return 'text-blue-600 dark:text-blue-400';
+    }
+  };
+
+  const getTimeAgo = (date: string) => {
+    const now = new Date();
+    const taskDate = new Date(date);
+    const diffMinutes = (now.getTime() - taskDate.getTime()) / (1000 * 60);
+    
+    if (diffMinutes < 60) return `${Math.floor(diffMinutes)} minutes ago`;
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hours ago`;
+    return `${Math.floor(diffMinutes / 1440)} days ago`;
+  };
 
   const stats = [
     {
@@ -43,16 +108,16 @@ export function ManagerDashboard() {
     },
     {
       title: 'Pending Tasks',
-      value: '3',
-      change: '-1',
+      value: pendingTasks.toString(),
+      change: `${pendingTasks} in progress`,
       changeType: 'positive',
       icon: Clock
     },
     {
       title: 'Issues',
-      value: '1',
-      change: '0',
-      changeType: 'neutral',
+      value: issues.toString(),
+      change: 'High priority',
+      changeType: issues > 0 ? 'negative' : 'neutral',
       icon: AlertCircle
     }
   ];
@@ -86,9 +151,6 @@ export function ManagerDashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manager Dashboard</h1>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {currentUser?.department || 'General Department'}
-        </div>
       </div>
 
       {/* Stats Grid */}
@@ -149,7 +211,7 @@ export function ManagerDashboard() {
                         {member.fullName}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {member.role} {member.department && `• ${member.department}`}
+                        {member.role}
                       </p>
                     </div>
                   </div>
@@ -172,39 +234,41 @@ export function ManagerDashboard() {
         </div>
         <div className="p-6">
           <div className="space-y-4">
-            <div className="flex items-center space-x-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Code review completed
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Alice Johnson • 2 hours ago
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-              <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Design review pending
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Bob Smith • 4 hours ago
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Weekly standup scheduled
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Tomorrow at 9:00 AM
-                </p>
-              </div>
-            </div>
+            {recentTasks.length === 0 ? (
+              <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                No tasks found
+              </p>
+            ) : (
+              recentTasks.map((task) => {
+                const TaskIcon = getTaskIcon(task.status);
+                return (
+                  <div key={task._id} className={`flex items-center space-x-4 p-3 ${getTaskBgColor(task.status)} rounded-lg`}>
+                    <TaskIcon className={`h-5 w-5 ${getTaskIconColor(task.status)}`} />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {task.title}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {task.assignedTo?.fullName || 'Unassigned'} • {getTimeAgo(task.createdAt)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        task.priority === 'URGENT' 
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                          : task.priority === 'HIGH'
+                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                          : task.priority === 'MEDIUM'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                      }`}>
+                        {task.priority}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

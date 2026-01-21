@@ -32,13 +32,16 @@ export class UserResponseDto {
   role: string;
 
   @Expose()
-  department: string;
-
-  @Expose()
   status: string;
 
   @Expose()
   managerId: string;
+
+  @Expose()
+  organizationId: string | null;
+
+  @Expose()
+  projectId: string | null;
 
   @Expose()
   lastLoginAt: Date;
