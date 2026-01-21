@@ -319,21 +319,6 @@ AuthPilot is designed for modern cloud deployment:
 - Edge network distribution
 - Environment variable management
 
-📖 See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
-
----
-
-## 📚 Additional Documentation
-
-| Document | Description |
-|----------|-------------|
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Complete deployment guide |
-| [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md) | Pre-deployment verification |
-| [GOOGLE_OAUTH_QUICKSTART.md](./GOOGLE_OAUTH_QUICKSTART.md) | Google OAuth setup guide |
-| [TESTING_GUIDE.md](./TESTING_GUIDE.md) | Testing instructions |
-| [GUARD_USAGE_EXAMPLES.md](./client/GUARD_USAGE_EXAMPLES.md) | Frontend permission guards |
-| [TENANT_CONTEXT_USAGE.md](./server/TENANT_CONTEXT_USAGE.md) | Multi-tenant implementation |
-
 ---
 
 ## 🤝 Contributing
