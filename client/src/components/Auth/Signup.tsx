@@ -65,6 +65,12 @@ export function Signup({ onToggleMode }: SignupProps) {
 
         <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-xl rounded-lg">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {(storeError || localError) && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+                <p className="text-sm">{storeError || localError}</p>
+              </div>
+            )}
+
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Full name
