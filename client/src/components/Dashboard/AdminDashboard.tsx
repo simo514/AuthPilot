@@ -28,7 +28,7 @@ export function AdminDashboard() {
     if (hasPermission(Permission.ROLE_READ)) {
       fetchRoles();
     }
-    fetchAuditLogs(1, 100);
+    fetchAuditLogs(1,5);
   }, [fetchUsers, fetchRoles, fetchAuditLogs]);
 
   // Count active roles

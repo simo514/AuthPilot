@@ -19,6 +19,10 @@ build/
 # TypeScript
 *.tsbuildinfo
 
+# Markdown files (except README)
+*.md
+!README.md
+
 # Environment
 .env
 .env.*
