@@ -31,7 +31,12 @@ import { startTokenRefresh, stopTokenRefresh } from './lib/tokenRefresh';
 
 function App() {
   const { theme } = useThemeStore();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, initializeAuth } = useAuthStore();
+
+  // Initialize auth on app load - restore session from httpOnly cookie
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   // Initialize automatic token refresh on app load
   useEffect(() => {

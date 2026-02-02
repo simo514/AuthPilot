@@ -16,10 +16,10 @@ import { AuditModule } from '../audit/audit.module';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: 3600,
+          expiresIn: (configService.get<string>('JWT_EXPIRATION') || '1h') as any,
         },
       }),
       inject: [ConfigService],

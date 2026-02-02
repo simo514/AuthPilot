@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import axios from 'axios';
 import { User, LoginCredentials, RegisterData } from '../types/auth.types';
-import { api, handleApiError } from '../lib/api';
+import { api, handleApiError, setAuthToken, clearAuthToken } from '../lib/api';
 import toast from 'react-hot-toast';
-import { startTokenRefresh, stopTokenRefresh } from '../lib/tokenRefresh';
+import { startTokenRefresh, stopTokenRefresh, setAuthenticationStatus } from '../lib/tokenRefresh';
 
 // ============================================
 // AUTH STORE STATE
@@ -12,8 +13,6 @@ import { startTokenRefresh, stopTokenRefresh } from '../lib/tokenRefresh';
 interface AuthState {
   // State
   user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -22,7 +21,7 @@ interface AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   loginWithGoogle: () => void;
-  handleGoogleCallback: (accessToken: string, user: User) => void;
+  handleGoogleCallback: () => Promise<void>;
   logout: () => void;
   refreshAccessToken: () => Promise<string>;
   clearError: () => void;
@@ -30,6 +29,7 @@ interface AuthState {
   updateCurrentUser: (updatedUser: Partial<User>) => void;
   updateProfile: (fullName: string, email: string) => Promise<void>;
   refreshCurrentUser: () => Promise<void>;
+  initializeAuth: () => Promise<void>;
 }
 
 // ============================================
@@ -42,8 +42,6 @@ export const useAuthStore = create<AuthState>()(
       (set, get) => ({
         // Initial State
         user: null,
-        accessToken: null, // Will be in memory only, not persisted
-        refreshToken: null, // Will be in HttpOnly cookie, not used here
         isAuthenticated: false,
         isLoading: false,
         error: null,
@@ -56,16 +54,18 @@ export const useAuthStore = create<AuthState>()(
             const response = await api.post<{ accessToken: string; user: User }>('/auth/login', credentials);
             const { accessToken, user } = response.data;
             
+            // Set in-memory access token
+            setAuthToken(accessToken);
+            
             set({
               user,
-              accessToken,
-              refreshToken: null, // Refresh token is in HttpOnly cookie
               isAuthenticated: true,
               isLoading: false,
               error: null,
             });
 
             // Start automatic token refresh
+            setAuthenticationStatus(true);
             startTokenRefresh();
           } catch (error) {
             const errorMessage = handleApiError(error);
@@ -84,16 +84,18 @@ export const useAuthStore = create<AuthState>()(
             const response = await api.post<{ accessToken: string; user: User }>('/auth/register', data);
             const { accessToken, user } = response.data;
             
+            // Set in-memory access token
+            setAuthToken(accessToken);
+            
             set({
               user,
-              accessToken,
-              refreshToken: null, // Refresh token is in HttpOnly cookie
               isAuthenticated: true,
               isLoading: false,
               error: null,
             });
 
             // Start automatic token refresh
+            setAuthenticationStatus(true);
             startTokenRefresh();
           } catch (error) {
             const errorMessage = handleApiError(error);
@@ -111,18 +113,45 @@ export const useAuthStore = create<AuthState>()(
           window.location.href = `${API_BASE_URL}/auth/google`;
         },
 
-        handleGoogleCallback: (accessToken: string, user: User) => {
-          set({
-            user,
-            accessToken,
-            refreshToken: null, // Refresh token is in HttpOnly cookie
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
+        handleGoogleCallback: async () => {
+          set({ isLoading: true, error: null });
+          const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+          
+          try {
+            // First, refresh to get access token from httpOnly cookie
+            // Use axios directly to avoid interceptor interference
+            const refreshResponse = await axios.post<{ accessToken: string }>(
+              `${API_BASE_URL}/auth/refresh`,
+              {},
+              { withCredentials: true }
+            );
+            const { accessToken } = refreshResponse.data;
+            
+            // Set in-memory access token
+            setAuthToken(accessToken);
+            
+            // Then fetch user info using api instance (now has token)
+            const userResponse = await api.get<{ user: User }>('/auth/me');
+            const { user } = userResponse.data;
+            
+            set({
+              user,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            });
 
-          // Start automatic token refresh
-          startTokenRefresh();
+            // Start automatic token refresh
+            setAuthenticationStatus(true);
+            startTokenRefresh();
+          } catch (error) {
+            const errorMessage = handleApiError(error);
+            set({
+              isLoading: false,
+              error: errorMessage,
+            });
+            throw new Error(errorMessage);
+          }
         },
 
         logout: () => {
@@ -134,13 +163,15 @@ export const useAuthStore = create<AuthState>()(
             });
           }
 
+          // Clear in-memory token
+          clearAuthToken();
+          
           // Stop automatic token refresh
+          setAuthenticationStatus(false);
           stopTokenRefresh();
 
           set({
             user: null,
-            accessToken: null,
-            refreshToken: null,
             isAuthenticated: false,
             error: null,
           });
@@ -169,17 +200,16 @@ export const useAuthStore = create<AuthState>()(
             
             const { accessToken } = response.data;
             
-            set({
-              accessToken,
-            });
+            // Set in-memory access token
+            setAuthToken(accessToken);
 
             return accessToken;
           } catch (error) {
             // Refresh failed - logout user
+            clearAuthToken();
+            setAuthenticationStatus(false);
             set({
               user: null,
-              accessToken: null,
-              refreshToken: null,
               isAuthenticated: false,
               error: 'Session expired. Please login again.',
             });
@@ -222,6 +252,45 @@ export const useAuthStore = create<AuthState>()(
             // Silent fail - user data refresh is not critical
           }
         },
+
+        initializeAuth: async () => {
+          // Try to restore session from httpOnly cookie on app load
+          const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+          
+          try {
+            // Use axios directly to bypass interceptor and avoid infinite loops
+            const refreshResponse = await axios.post<{ accessToken: string }>(
+              `${API_BASE_URL}/auth/refresh`,
+              {},
+              { withCredentials: true }
+            );
+            const { accessToken } = refreshResponse.data;
+            
+            // Set in-memory access token
+            setAuthToken(accessToken);
+            
+            // Fetch user info using api instance (now has token)
+            const userResponse = await api.get<{ user: User }>('/auth/me');
+            const { user } = userResponse.data;
+            
+            set({
+              user,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+
+            // Start automatic token refresh
+            setAuthenticationStatus(true);
+            startTokenRefresh();
+          } catch (error) {
+            // No valid session - user needs to login (this is normal on first visit)
+            set({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false,
+            });
+          }
+        },
       }),
 
       
@@ -230,7 +299,8 @@ export const useAuthStore = create<AuthState>()(
         partialize: (state) => ({
           user: state.user,
           isAuthenticated: state.isAuthenticated,
-          // Do NOT persist tokens - access token in memory, refresh token in cookie
+          // Do NOT persist access token - it's in memory only
+          // Refresh token is in HttpOnly cookie
         }),
       }
     )

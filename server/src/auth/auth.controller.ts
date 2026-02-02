@@ -23,9 +23,14 @@ import { GoogleUserDto } from './dto/google-user.dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtService } from '@nestjs/jwt';
+import { UserDocument } from '../users/user.schema';
 
 interface RequestWithGoogleUser extends Request {
   user: GoogleUserDto;
+}
+
+interface RequestWithUser extends Request {
+  user: UserDocument;
 }
 
 interface JwtPayload {
@@ -102,26 +107,23 @@ export class AuthController {
     };
   }
 
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  async me(@Req() req: RequestWithUser) {
+    // JWT strategy returns the User document, transform it to response DTO
+    const userData = await this.authService.getUserById(req.user.uuid);
+    return { user: userData };
+  }
+
   @Post('logout')
+  @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
   async logout(
-    @Headers('authorization') authorization?: string,
-    @Res({ passthrough: true }) res?: Response,
+    @Req() req: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    if (authorization && authorization.startsWith('Bearer ')) {
-      try {
-        const token = authorization.substring(7);
-        const decoded = this.jwtService.decode(token) as JwtPayload;
-        if (decoded?.sub) {
-          await this.authService.logout(decoded.sub);
-        }
-      } catch (error) {
-        this.logger.warn('Failed to decode token during logout');
-      }
-    }
-
-    res?.clearCookie('refreshToken');
-
+    await this.authService.logout(req.user.uuid);
+    res.clearCookie('refreshToken');
     return { message: 'Logged out successfully' };
   }
 
@@ -143,12 +145,8 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // Redirect to frontend with tokens in URL params (temporary solution)
-    // In production, consider using a different approach for better security
+    // Redirect to frontend callback route (no tokens in URL)
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const accessToken = encodeURIComponent(result.accessToken);
-    const user = encodeURIComponent(JSON.stringify(result.user));
-
-    res.redirect(`${frontendUrl}/auth/google/callback?accessToken=${accessToken}&user=${user}`);
+    res.redirect(`${frontendUrl}/auth/google/callback`);
   }
 }

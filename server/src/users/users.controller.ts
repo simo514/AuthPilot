@@ -44,7 +44,6 @@ export class UsersController {
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(AuditInterceptor)
   async createUser(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    this.logger.debug(`Creating user with data: ${JSON.stringify(createUserDto)}`);
     const user = await this.usersService.createUser(createUserDto);
     return plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true });
   }
@@ -77,7 +76,6 @@ export class UsersController {
       throw new NotFoundException('User not authenticated');
     }
 
-    this.logger.log(`${currentUser.email}/password - Resetting password`);
     await this.usersService.updatePassword(currentUser.email, currentPassword, newPassword);
     return { message: 'Password updated successfully' };
   }

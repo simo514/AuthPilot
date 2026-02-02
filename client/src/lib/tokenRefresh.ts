@@ -1,9 +1,18 @@
 import axios from 'axios';
+import { setAuthToken, clearAuthToken } from './api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const REFRESH_INTERVAL = 10 * 60 * 1000; // Refresh every 10 minutes (before 1 hour expiry)
 
 let refreshInterval: NodeJS.Timeout | null = null;
+let isAuthenticated = false;
+
+/**
+ * Set authentication status
+ */
+export const setAuthenticationStatus = (status: boolean) => {
+  isAuthenticated = status;
+};
 
 /**
  * Automatically refresh access token before it expires
@@ -14,43 +23,29 @@ export const startTokenRefresh = () => {
     clearInterval(refreshInterval);
   }
 
+  isAuthenticated = true;
+
   // Set up periodic token refresh
   refreshInterval = setInterval(async () => {
-    const authStorage = localStorage.getItem('auth-storage');
-    
-    if (authStorage) {
+    if (isAuthenticated) {
       try {
-        const { state } = JSON.parse(authStorage);
-        const isAuthenticated = state?.isAuthenticated;
+        // Call refresh endpoint - refresh token is in cookie
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+          withCredentials: true, // Send cookies
+        });
 
-        if (isAuthenticated) {
-          // Call refresh endpoint - refresh token is in cookie
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
-            withCredentials: true, // Send cookies
-          });
+        const { accessToken } = response.data;
 
-          const { accessToken } = response.data;
-
-          // Update access token in storage (in memory)
-          const updatedStorage = {
-            state: {
-              ...state,
-              accessToken,
-            },
-          };
-          localStorage.setItem('auth-storage', JSON.stringify(updatedStorage));
-        } else {
-          stopTokenRefresh();
-        }
+        // Update in-memory access token
+        setAuthToken(accessToken);
       } catch (error) {
         console.error('[Token Refresh] Failed to refresh token:', error);
         // If refresh fails, stop the interval and clear storage
         stopTokenRefresh();
-        localStorage.removeItem('auth-storage');
+        clearAuthToken();
         window.location.href = '/login';
       }
     } else {
-      // No auth data, stop refreshing
       stopTokenRefresh();
     }
   }, REFRESH_INTERVAL);
@@ -64,21 +59,18 @@ export const stopTokenRefresh = () => {
     clearInterval(refreshInterval);
     refreshInterval = null;
   }
+  isAuthenticated = false;
 };
 
 /**
  * Manually refresh token
  */
 export const refreshTokenNow = async (): Promise<boolean> => {
-  const authStorage = localStorage.getItem('auth-storage');
-  
-  if (!authStorage) {
+  if (!isAuthenticated) {
     return false;
   }
 
   try {
-    const { state } = JSON.parse(authStorage);
-    
     // Call refresh endpoint - refresh token is in cookie
     const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
       withCredentials: true,
@@ -86,14 +78,8 @@ export const refreshTokenNow = async (): Promise<boolean> => {
 
     const { accessToken } = response.data;
 
-    // Update access token in storage
-    const updatedStorage = {
-      state: {
-        ...state,
-        accessToken,
-      },
-    };
-    localStorage.setItem('auth-storage', JSON.stringify(updatedStorage));
+    // Update in-memory access token
+    setAuthToken(accessToken);
     
     return true;
   } catch (error) {

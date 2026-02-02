@@ -7,6 +7,24 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // ============================================
+// IN-MEMORY TOKEN STORAGE
+// ============================================
+
+let inMemoryAccessToken: string | null = null;
+
+export const setAuthToken = (token: string | null) => {
+  inMemoryAccessToken = token;
+};
+
+export const getAuthToken = (): string | null => {
+  return inMemoryAccessToken;
+};
+
+export const clearAuthToken = () => {
+  inMemoryAccessToken = null;
+};
+
+// ============================================
 // AXIOS INSTANCE
 // ============================================
 
@@ -25,20 +43,11 @@ export const api: AxiosInstance = axios.create({
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Get token from localStorage (or your auth store)
-    const authStorage = localStorage.getItem('auth-storage');
+    // Get token from in-memory storage
+    const token = getAuthToken();
     
-    if (authStorage) {
-      try {
-        const { state } = JSON.parse(authStorage);
-        const token = state?.accessToken;
-        
-        if (token && config.headers) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (error) {
-        console.error('Error parsing auth storage:', error);
-      }
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     
     return config;
@@ -60,50 +69,40 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Handle 401 Unauthorized - Token expired
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Don't retry on auth endpoints (login, register, refresh)
+    // These endpoints are expected to return 401 for invalid credentials
+    const authEndpoints = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/google'];
+    const isAuthEndpoint = authEndpoints.some(endpoint => originalRequest.url?.includes(endpoint));
+    
+    // Handle 401 Unauthorized - Token expired (but not for auth endpoints)
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       try {
-        // Get auth state from storage
-        const authStorage = localStorage.getItem('auth-storage');
-        
-        if (authStorage) {
-          const { state } = JSON.parse(authStorage);
+        // Call refresh token endpoint - refresh token is in cookie
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+          withCredentials: true,
+        });
 
-          if (state?.isAuthenticated) {
-            // Call refresh token endpoint - refresh token is in cookie
-            const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
-              withCredentials: true,
-            });
+        const { accessToken } = response.data;
 
-            const { accessToken } = response.data;
+        // Update in-memory access token
+        setAuthToken(accessToken);
 
-            // Update access token in storage
-            const updatedStorage = {
-              state: {
-                ...state,
-                accessToken,
-              },
-            };
-            localStorage.setItem('auth-storage', JSON.stringify(updatedStorage));
-
-            // Retry original request with new token
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-            }
-            return api(originalRequest);
-          }
+        // Retry original request with new token
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         }
+        return api(originalRequest);
       } catch (refreshError) {
-        // Refresh token failed - redirect to login
-        localStorage.removeItem('auth-storage');
+        // Refresh token failed - clear state and redirect to login
+        clearAuthToken();
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }
 
-    // Handle other errors
+    // Handle other errors (including 401 on auth endpoints)
     return Promise.reject(error);
   }
 );
@@ -112,17 +111,7 @@ api.interceptors.response.use(
 // HELPER FUNCTIONS
 // ============================================
 
-export const setAuthToken = (token: string | null) => {
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common['Authorization'];
-  }
-};
-
-export const clearAuthToken = () => {
-  delete api.defaults.headers.common['Authorization'];
-};
+// Note: setAuthToken, getAuthToken, and clearAuthToken are already defined above
 
 // ============================================
 // ERROR HANDLER

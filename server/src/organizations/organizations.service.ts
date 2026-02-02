@@ -57,7 +57,6 @@ export class OrganizationsService {
       const organization = new this.organizationModel(createOrganizationDto);
       await organization.save();
 
-      this.logger.log(`Organization created: ${name} (${slug})`);
 
       return plainToInstance(OrganizationResponseDto, organization.toObject(), {
         excludeExtraneousValues: true,
@@ -168,7 +167,6 @@ export class OrganizationsService {
     Object.assign(organization, updateOrganizationDto);
     await organization.save();
 
-    this.logger.log(`Organization updated: ${organization.name} (${uuid})`);
 
     return plainToInstance(
       OrganizationResponseDto,
@@ -186,23 +184,19 @@ export class OrganizationsService {
 
     // Delete all tasks in this organization
     await this.taskModel.deleteMany({ organization: organization._id }).exec();
-    this.logger.log(`Deleted all tasks for organization: ${uuid}`);
 
     // Delete all projects in this organization
     await this.projectModel.deleteMany({ organizationId: organization._id }).exec();
-    this.logger.log(`Deleted all projects for organization: ${uuid}`);
 
     // Set organizationId to null for all users in this organization
     await this.userModel.updateMany(
       { organizationId: organization._id },
       { $set: { organizationId: null, projectId: null } }
     ).exec();
-    this.logger.log(`Unlinked all users from organization: ${uuid}`);
 
     // Finally, delete the organization
     await this.organizationModel.deleteOne({ uuid }).exec();
 
-    this.logger.log(`Organization deleted: ${uuid}`);
   }
 
   async incrementUserCount(uuid: string): Promise<void> {
@@ -246,7 +240,6 @@ export class OrganizationsService {
     organization.status = status;
     await organization.save();
 
-    this.logger.log(`Organization status updated: ${uuid} -> ${status}`);
 
     return plainToInstance(
       OrganizationResponseDto,

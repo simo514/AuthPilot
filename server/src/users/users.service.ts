@@ -84,14 +84,13 @@ export class UsersService {
     
     try {
       await createdUser.save();
-      this.logger.log(`User created successfully: ${email} with role: ${roleName}`);
 
       // Fetch the user with populated role to return complete data
       const userWithRole = await this.userModel.findById(createdUser._id).populate('roleId').exec();
 
       return plainToInstance(UserResponseDto, userWithRole, { excludeExtraneousValues: true });
     } catch (error) {
-      this.logger.error(`Failed to create user: ${email}`, error.stack);
+      this.logger.error('Failed to create user', error.stack);
       if (error.code === 11000) {
         // Check which field caused the duplicate key error
         const duplicateField = error.keyPattern ? Object.keys(error.keyPattern) : [];
@@ -218,7 +217,7 @@ export class UsersService {
   }
 
   async getUserById(uuid: string): Promise<Omit<User, 'password'> | null> {
-    this.logger.log(`Fetching user by id: ${uuid}`);
+
     try {
       const user = await this.userModel
         .findOne({ uuid })
@@ -241,7 +240,7 @@ export class UsersService {
   }
 
   async deleteUser(uuid: string): Promise<boolean> {
-    this.logger.log(`Deleting user: ${uuid}`);
+
     try {
       // Get user's organizationId and projectId before deletion
       const user = await this.userModel.findOne({ uuid }).select('organizationId projectId').exec();
@@ -310,13 +309,13 @@ export class UsersService {
         .exec();
 
       if (!user) {
-        this.logger.warn(`User not found: ${email}`);
+        this.logger.warn('User not found during authentication');
         return null;
       }
 
       return user;
     } catch (error) {
-      this.logger.error(`Failed to fetch user with password: ${email}`, error.stack);
+      this.logger.error('Failed to fetch user with password', error.stack);
       throw new InternalServerErrorException('Failed to fetch user');
     }
   }
@@ -353,10 +352,8 @@ export class UsersService {
       user.resetPasswordToken = null;
       user.resetPasswordExpires = null;
       await user.save();
-
-      this.logger.log(`Password updated successfully for user: ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to update password: ${email}`, error.stack);
+      this.logger.error('Failed to update password', error.stack);
       throw error instanceof NotFoundException || error instanceof BadRequestException
         ? error
         : new InternalServerErrorException('Failed to update password');
@@ -395,13 +392,12 @@ export class UsersService {
 
     try {
       await createdUser.save();
-      this.logger.log(`User created via Google OAuth: ${email}`);
 
       const userWithRole = await this.userModel.findById(createdUser._id).populate('roleId').exec();
 
       return plainToInstance(UserResponseDto, userWithRole, { excludeExtraneousValues: true });
     } catch (error) {
-      this.logger.error(`Failed to create user via Google OAuth: ${email}`, error.stack);
+      this.logger.error('Failed to create user via Google OAuth', error.stack);
       if (error.code === 11000) {
         throw new ConflictException('User with this email already exists');
       }

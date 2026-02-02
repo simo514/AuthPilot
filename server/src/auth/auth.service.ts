@@ -1,5 +1,6 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { plainToInstance } from 'class-transformer';
 import { LoginResponseDto, RefreshResponseDto } from './dto/auth-response.dto';
@@ -12,19 +13,39 @@ import { Redis } from 'ioredis';
 export class AuthService {
   private logger = new Logger(AuthService.name);
   private readonly REFRESH_TOKEN_PREFIX = 'refresh_token:';
-  private readonly REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
+  private readonly refreshTokenTTL: number;
 
   constructor(
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     @InjectRedis() private readonly redis: Redis,
-  ) {}
+  ) {
+    // Convert JWT_REFRESH_EXPIRATION to seconds for Redis TTL
+    const refreshExpiration = this.configService.get<string>('JWT_REFRESH_EXPIRATION', '7d');
+    this.refreshTokenTTL = this.parseExpirationToSeconds(refreshExpiration);
+  }
+
+  private parseExpirationToSeconds(expiration: string): number {
+    const match = expiration.match(/(\d+)([smhd])/);
+    if (!match) return 7 * 24 * 60 * 60; // Default 7 days
+    
+    const value = parseInt(match[1]);
+    const unit = match[2];
+    
+    switch (unit) {
+      case 's': return value;
+      case 'm': return value * 60;
+      case 'h': return value * 60 * 60;
+      case 'd': return value * 24 * 60 * 60;
+      default: return 7 * 24 * 60 * 60;
+    }
+  }
 
   async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
     const { fullName, email, password } = registerDto;
 
     await this.usersService.createUser({ fullName, email, password });
-    this.logger.log(`User registered successfully: ${email}`);
 
     const user = await this.usersService.findByEmailWithPassword(email);
     if (!user) {
@@ -38,19 +59,18 @@ export class AuthService {
       role: user.role,
     };
     const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refreshExpiration = this.configService.get<string>('JWT_REFRESH_EXPIRATION', '7d');
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: refreshExpiration as any });
 
     // Store refresh token in Redis with expiration
     await this.redis.setex(
       `${this.REFRESH_TOKEN_PREFIX}${user.uuid}`,
-      this.REFRESH_TOKEN_TTL,
+      this.refreshTokenTTL,
       refreshToken,
     );
 
     // Get user data without password
     const userData = await this.usersService.getUserById(user.uuid);
-
-    this.logger.log(`Tokens generated for registered user: ${email}, stored in Redis`);
 
     // Transform to DTO to remove sensitive fields
     return plainToInstance(
@@ -70,14 +90,14 @@ export class AuthService {
   async login(email: string, password: string): Promise<LoginResponseDto> {
     const user = await this.usersService.findByEmailWithPassword(email);
     if (!user) {
-      this.logger.warn(`User not found during login: ${email}`);
+      this.logger.warn('User not found during login attempt');
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Compare passwords
     const isPasswordValid = await this.usersService.comparePasswords(password, user.password);
     if (!isPasswordValid) {
-      this.logger.warn(`Invalid password for user: ${email}`);
+      this.logger.warn('Invalid password during login attempt');
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -90,18 +110,17 @@ export class AuthService {
       role: user.role,
     };
     const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refreshExpiration = this.configService.get<string>('JWT_REFRESH_EXPIRATION', '7d');
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: refreshExpiration as any });
 
     // Store refresh token in Redis with expiration
     await this.redis.setex(
       `${this.REFRESH_TOKEN_PREFIX}${user.uuid}`,
-      this.REFRESH_TOKEN_TTL,
+      this.refreshTokenTTL,
       refreshToken,
     );
 
     const userData = await this.usersService.getUserById(user.uuid);
-
-    this.logger.log(`User logged in successfully: ${email}, session stored in Redis`);
 
     return plainToInstance(
       LoginResponseDto,
@@ -146,8 +165,6 @@ export class AuthService {
       };
       const newAccessToken = this.jwtService.sign(payload);
 
-      this.logger.log(`Access token refreshed for user: ${user.email}`);
-
       return plainToInstance(
         RefreshResponseDto,
         {
@@ -164,7 +181,10 @@ export class AuthService {
   // Add logout method to remove session from Redis
   async logout(userUuid: string): Promise<void> {
     await this.redis.del(`${this.REFRESH_TOKEN_PREFIX}${userUuid}`);
-    this.logger.log(`User session removed from Redis: ${userUuid}`);
+  }
+
+  async getUserById(userUuid: string) {
+    return this.usersService.getUserById(userUuid);
   }
 
   async googleLogin(user: GoogleUserDto): Promise<LoginResponseDto> {
@@ -189,7 +209,6 @@ export class AuthService {
       existingUser = await this.usersService.findByEmailWithPassword(email);
     } else if (!existingUser.googleId) {
       // Link existing account with Google
-      this.logger.log(`Linking existing account with Google: ${email}`);
       await this.usersService.updateGoogleId(existingUser.uuid, googleId, picture);
     }
 
@@ -208,19 +227,18 @@ export class AuthService {
       organizationId: existingUser.organizationId,
     };
     const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refreshExpiration = this.configService.get<string>('JWT_REFRESH_EXPIRATION', '7d');
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: refreshExpiration as any });
 
     // Store refresh token in Redis
     await this.redis.setex(
       `${this.REFRESH_TOKEN_PREFIX}${existingUser.uuid}`,
-      this.REFRESH_TOKEN_TTL,
+      this.refreshTokenTTL,
       refreshToken,
     );
 
     // Get user data without password
     const userData = await this.usersService.getUserById(existingUser.uuid);
-
-    this.logger.log(`Google OAuth login successful: ${email}`);
 
     return plainToInstance(
       LoginResponseDto,

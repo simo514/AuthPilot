@@ -33,7 +33,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       accessToken,
     };
 
-    this.logger.log(`Google OAuth user validated: ${user.email}`);
     done(null, user);
   }
 }

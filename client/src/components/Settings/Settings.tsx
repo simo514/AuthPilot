@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Lock, Bell, User, Save, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, Save, Eye, EyeOff } from 'lucide-react';
 
 export function Settings() {
   const { user, resetPassword, updateProfile } = useAuthStore();
@@ -18,16 +18,6 @@ export function Settings() {
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
-  });
-
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem('notifications');
-    return saved ? JSON.parse(saved) : {
-      emailNotifications: true,
-      pushNotifications: false,
-      securityAlerts: true,
-      marketingEmails: false
-    };
   });
 
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -76,15 +66,9 @@ export function Settings() {
     }
   };
 
-  const handleNotificationSave = () => {
-    localStorage.setItem('notifications', JSON.stringify(notifications));
-    alert('Notification preferences saved!');
-  };
-
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
-    { id: 'password', label: 'Password', icon: Lock },
-    { id: 'notifications', label: 'Notifications', icon: Bell }
+    { id: 'password', label: 'Password', icon: Lock }
   ];
 
   return (
@@ -256,88 +240,6 @@ export function Settings() {
                 >
                   <Save className="h-4 w-4" />
                   <span>Update Password</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Notification Preferences</h2>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">Email Notifications</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Receive notifications via email</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.emailNotifications}
-                      onChange={(e) => setNotifications({ ...notifications, emailNotifications: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">Push Notifications</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Receive push notifications in browser</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.pushNotifications}
-                      onChange={(e) => setNotifications({ ...notifications, pushNotifications: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">Security Alerts</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Important security notifications</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.securityAlerts}
-                      onChange={(e) => setNotifications({ ...notifications, securityAlerts: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">Marketing Emails</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Product updates and promotions</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.marketingEmails}
-                      onChange={(e) => setNotifications({ ...notifications, marketingEmails: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={handleNotificationSave}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Save className="h-4 w-4" />
-                  <span>Save Preferences</span>
                 </button>
               </div>
             </div>
