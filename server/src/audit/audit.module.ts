@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Audit, AuditSchema } from './audit.schema';
 import { AuditController } from './audit.controller';
 import { AuditService } from './audit.service';
+import { AuditCleanupService } from './audit-cleanup.service';
 import { AuditInterceptor } from './audit.interceptor';
 import { OrganizationsModule } from '../organizations/organizations.module';
 
@@ -14,7 +15,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
     forwardRef(() => OrganizationsModule), // Import to get TenantContextService
   ],
   controllers: [AuditController],
-  providers: [AuditService, AuditInterceptor],
+  providers: [AuditService, AuditCleanupService, AuditInterceptor],
   exports: [AuditService, AuditInterceptor],
 })
 export class AuditModule {}
