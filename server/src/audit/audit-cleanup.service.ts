@@ -4,12 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { Audit, AuditDocument } from './audit.schema';
 import { Model } from 'mongoose';
 
-/**
- * Singleton-scoped service responsible for scheduled audit log cleanup.
- * Separated from AuditService because AuditService is request-scoped
- * (it injects REQUEST and TenantContextService), and NestJS cron jobs
- * cannot run in request-scoped providers.
- */
+
 @Injectable()
 export class AuditCleanupService {
   private readonly logger = new Logger(AuditCleanupService.name);
