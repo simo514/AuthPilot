@@ -32,10 +32,11 @@ import { HealthController } from './health.controller';
         JWT_EXPIRATION: Joi.string().default('15m'),
         JWT_REFRESH_EXPIRATION: Joi.string().default('7d'),
         
-        // Redis
-        REDIS_HOST: Joi.string().required(),
-        REDIS_PORT: Joi.number().required(),
-        REDIS_PASSWORD: Joi.string().required(),
+        // Redis - either REDIS_URL (Render) or individual host/port/password
+        REDIS_URL: Joi.string().optional(),
+        REDIS_HOST: Joi.string().optional(),
+        REDIS_PORT: Joi.number().optional(),
+        REDIS_PASSWORD: Joi.string().optional(),
         
         // Google OAuth (optional)
         GOOGLE_CLIENT_ID: Joi.string().optional(),
@@ -58,18 +59,39 @@ import { HealthController } from './health.controller';
       }),
     }),
     RedisModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        type: 'single',
-        options: {
-          host: configService.get<string>('REDIS_HOST'),
-          port: configService.get<number>('REDIS_PORT'),
-          password: configService.get<string>('REDIS_PASSWORD'),
-          retryStrategy(times) {
-            const delay = Math.min(times * 50, 2000);
-            return delay;
+      useFactory: (configService: ConfigService) => {
+        const redisUrl = configService.get<string>('REDIS_URL');
+        if (redisUrl) {
+          return {
+            type: 'single',
+            url: redisUrl,
+            options: {
+              tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+              retryStrategy(times: number) {
+                return Math.min(times * 50, 2000);
+              },
+            },
+          };
+        }
+        const host = configService.get<string>('REDIS_HOST', 'localhost');
+        const port = configService.get<number>('REDIS_PORT', 6379);
+        const password = configService.get<string>('REDIS_PASSWORD');
+        const redisTls = configService.get<string>('REDIS_TLS');
+        // Auto-enable TLS for port 6380 (Upstash/Redis Cloud TLS port) or if REDIS_TLS=true
+        const useTls = redisTls === 'true' || port === 6380;
+        return {
+          type: 'single',
+          options: {
+            host,
+            port,
+            password,
+            tls: useTls ? { rejectUnauthorized: false } : undefined,
+            retryStrategy(times: number) {
+              return Math.min(times * 50, 2000);
+            },
           },
-        },
-      }),
+        };
+      },
       inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),
